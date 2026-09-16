@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Academia Virtual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F1EFE8; --ink:#1C2521; --ink-soft:#5A6660;
+    --line:#D8D3C6; --accent:#3B6E5D; --gold:#D9A441; --white:#FFFFFF; --error:#B23A2E;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans',sans-serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  h1,h2,h3{font-family:'Fraunces',serif;}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px;}
+
+  /* ---------- LOGIN ---------- */
+  #login-screen{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--ink); z-index:100;}
+  .login-box{background:var(--white); padding:48px 40px; border-radius:6px; width:320px;}
+  .login-box h1{font-size:26px; margin-bottom:6px;}
+  .login-box p{color:var(--ink-soft); font-size:14px; margin:0 0 24px;}
+  .login-box input{width:100%; margin-bottom:14px; font-family:'IBM Plex Sans',sans-serif; font-size:14px; padding:10px 12px; border:1px solid var(--line); border-radius:4px; background:var(--white); color:var(--ink);}
+  .login-box input:focus{outline:none; border-color:var(--accent);}
+  .login-error{color:var(--error); font-size:13px; min-height:18px; margin-bottom:6px;}
+  .btn-login{width:100%; font-family:'IBM Plex Mono',monospace; font-size:13px; text-transform:uppercase; letter-spacing:.04em; background:var(--ink); color:var(--white); border:none; padding:12px; border-radius:3px; cursor:pointer;}
+  .btn-login:hover{background:var(--accent);}
+
+  header{padding:56px 0 36px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-end; gap:20px;}
+  header h1{font-size:clamp(28px,4vw,40px);}
+  header p{color:var(--ink-soft); margin-top:10px; max-width:56ch;}
+  .saludo{text-align:right; font-size:14px; color:var(--ink-soft);}
+  .btn-salir{background:none; border:none; color:var(--accent); font-family:'IBM Plex Mono',monospace; font-size:12.5px; text-transform:uppercase; cursor:pointer; margin-top:4px;}
+
+  main{padding:40px 0 80px;}
+  #estado{color:var(--ink-soft); font-size:14px; margin-bottom:20px;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:22px;}
+
+  .curso{background:var(--white); border:1px solid var(--line); border-radius:6px; overflow:hidden; display:flex; flex-direction:column;}
+  .curso img{width:100%; aspect-ratio:16/9; object-fit:cover; background:var(--paper);}
+  .curso-body{padding:18px; display:flex; flex-direction:column; gap:8px; flex:1;}
+  .curso-body h3{font-size:19px; line-height:1.2;}
+  .curso-body p.desc{font-size:14px; color:var(--ink-soft); flex:1;}
+  .meta{display:flex; flex-wrap:wrap; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-soft);}
+  .meta span{border:1px solid var(--line); border-radius:2px; padding:3px 8px;}
+
+  .btn-ver{margin-top:6px; align-self:flex-start; font-family:'IBM Plex Mono',monospace; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; background:var(--ink); color:var(--white); border:none; padding:10px 16px; border-radius:3px; cursor:pointer;}
+  .btn-ver:hover{background:var(--accent);}
+
+  .detalle{display:none; border-top:1px solid var(--line); padding:18px; background:var(--paper);}
+  .detalle.abierto{display:block;}
+  .clase{margin-bottom:22px;}
+  .clase:last-child{margin-bottom:0;}
+  .clase h4{font-size:15px; margin-bottom:8px;}
+  .clase iframe{width:100%; aspect-ratio:16/9; border:none; border-radius:4px; margin-bottom:10px; display:block;}
+  .lista-pdf a{display:block; font-size:14px; color:var(--ink); text-decoration:none; padding:8px 10px; border:1px solid var(--line); border-radius:3px; background:var(--white); margin-bottom:6px;}
+  .lista-pdf a:hover{border-color:var(--accent);}
+
+  #vacio{text-align:center; padding:60px 20px; color:var(--ink-soft);}
+  #error{color:var(--error); padding:20px 0;}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>Academia Virtual</h1>
+    <p>Ingresá con el email y la contraseña que te dieron en el instituto.</p>
+    <input id="login-email" type="text" placeholder="Email" autocomplete="username">
+    <input id="login-pass" type="password" placeholder="Contraseña" autocomplete="current-password">
+    <div class="login-error" id="login-error"></div>
+    <button class="btn-login" onclick="doLogin()">Ingresar</button>
+  </div>
+</div>
+
+<!-- ===================== CLASSROOM ===================== -->
+<div id="app" style="display:none">
+  <header class="wrap">
+    <div>
+      <h1>Academia Virtual</h1>
+      <p>Estos son los cursos en los que estás inscripto y habilitado.</p>
+    </div>
+    <div class="saludo">
+      <div id="saludo-nombre"></div>
+      <button class="btn-salir" onclick="logout()">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div id="estado" class="mono">Cargando tus cursos…</div>
+      <div id="grid" class="grid"></div>
+      <div id="vacio" style="display:none;">Todavía no tenés cursos habilitados. Consultá con el instituto.</div>
+      <div id="error" style="display:none;"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // Pegá acá la URL /exec del Apps Script del CLASSROOM (Code_Classroom.gs)
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyNPTjRExPbY9QfSG_eyp2qndNdqYsmhJe64CzEOSnJPOUba6sGeJXsZEwW805z2F-j/exec';
+
+  const gridEl = document.getElementById('grid');
+  const estadoEl = document.getElementById('estado');
+  const vacioEl = document.getElementById('vacio');
+  const errorEl = document.getElementById('error');
+
+  async function api(action, payload) {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, ...payload })
+    });
+    return res.json();
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-pass').value;
+    const errorEl2 = document.getElementById('login-error');
+    errorEl2.textContent = '';
+    if (!email || !password) { errorEl2.textContent = 'Completá email y contraseña.'; return; }
+    try {
+      const result = await api('loginAlumno', { email, password });
+      if (result.success) {
+        sessionStorage.setItem('alumno', JSON.stringify(result.alumno));
+        mostrarApp(result.alumno);
+      } else {
+        errorEl2.textContent = 'Email o contraseña incorrectos.';
+      }
+    } catch (e) {
+      errorEl2.textContent = 'No se pudo conectar con el servidor.';
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem('alumno');
+    location.reload();
+  }
+
+  function mostrarApp(alumno) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('saludo-nombre').textContent = 'Hola, ' + (alumno.Nombre || '');
+    cargarCursos(alumno.ID_Alumno);
+  }
+
+  async function cargarCursos(idAlumno) {
+    try {
+      const data = await api('getCursosAlumno', { idAlumno });
+      estadoEl.style.display = 'none';
+      const cursos = data.cursos || [];
+      if (cursos.length === 0) { vacioEl.style.display = 'block'; return; }
+      cursos.forEach(curso => gridEl.appendChild(crearTarjeta(curso)));
+    } catch (e) {
+      estadoEl.style.display = 'none';
+      errorEl.style.display = 'block';
+      errorEl.textContent = 'No se pudieron cargar tus cursos. Intentá de nuevo más tarde.';
+    }
+  }
+
+  function crearTarjeta(curso) {
+    const card = document.createElement('div');
+    card.className = 'curso';
+    card.innerHTML = `
+      ${curso.Imagen_URL ? `<img src="${curso.Imagen_URL}" alt="${curso.Nombre || ''}">` : ''}
+      <div class="curso-body">
+        <h3>${curso.Nombre || 'Curso sin nombre'}</h3>
+        <p class="desc">${curso.Descripcion_Programa || ''}</p>
+        <div class="meta">
+          ${curso.Duracion ? `<span>${curso.Duracion}</span>` : ''}
+          ${curso.Puntaje_Minimo_Aprobacion ? `<span>Aprobación: ${curso.Puntaje_Minimo_Aprobacion}</span>` : ''}
+        </div>
+        <button class="btn-ver">Ver contenido</button>
+      </div>
+      <div class="detalle">
+        ${curso.Descripcion_Larga ? `<p style="font-size:14px;color:var(--ink-soft);margin-bottom:16px;white-space:pre-line;">${curso.Descripcion_Larga}</p>` : ''}
+        ${(curso.Clases || []).map(clase => renderClase(clase)).join('') || '<p>Todavía no hay clases cargadas para este curso.</p>'}
+      </div>
+    `;
+    const boton = card.querySelector('.btn-ver');
+    const detalle = card.querySelector('.detalle');
+    boton.addEventListener('click', () => {
+      const abierto = detalle.classList.toggle('abierto');
+      boton.textContent = abierto ? 'Ocultar contenido' : 'Ver contenido';
+    });
+    return card;
+  }
+
+  function renderClase(clase) {
+    const idVideo = clase.VIDEO || '';
+    const materiales = clase.Materiales || [];
+    return `
+      <div class="clase">
+        <h4>${clase.Orden ? clase.Orden + '. ' : ''}${clase.Titulo || ''}</h4>
+        ${idVideo ? `<iframe src="https://www.youtube.com/embed/${idVideo}" title="${clase.Titulo || 'Video'}" allowfullscreen></iframe>` : ''}
+        ${materiales.length ? `<div class="lista-pdf">${materiales.map(m => `<a href="${m.Link_PDF}" target="_blank" rel="noopener">📄 ${m.Nombre_PDF || 'Descargar PDF'}</a>`).join('')}</div>` : ''}
+      </div>
+    `;
+  }
+
+  // Si ya había una sesión activa, entra directo
+  const guardado = sessionStorage.getItem('alumno');
+  if (guardado) { mostrarApp(JSON.parse(guardado)); }
+</script>
+
+</body>
+</html>
