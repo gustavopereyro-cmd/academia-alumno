@@ -3,63 +3,225 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Academia Virtual</title>
+<title>Instituto Mariana Barrera · Aula Virtual</title>
+<link rel="icon" href="logo-loto.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --paper:#F1EFE8; --ink:#1C2521; --ink-soft:#5A6660;
-    --line:#D8D3C6; --accent:#3B6E5D; --gold:#D9A441; --white:#FFFFFF; --error:#B23A2E;
+    --rose:#E8B4B0;
+    --rose-soft:#F5D5D0;
+    --rose-deep:#C98F8A;
+    --cream:#FDFBF9;
+    --paper:#F7F2EE;
+    --ink:#4A4444;
+    --ink-soft:#8A8280;
+    --line:#EDE4DE;
+    --white:#FFFFFF;
+    --error:#C97B74;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans',sans-serif;}
-  .mono{font-family:'IBM Plex Mono',monospace;}
-  h1,h2,h3{font-family:'Fraunces',serif;}
-  .wrap{max-width:1080px; margin:0 auto; padding:0 24px;}
+  body{
+    background:var(--cream); color:var(--ink);
+    font-family:'Jost', sans-serif;
+    font-weight:300;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{font-family:'Cormorant Garamond', serif; font-weight:500; letter-spacing:.005em;}
+  .wrap{max-width:1120px; margin:0 auto; padding:0 28px;}
 
   /* ---------- LOGIN ---------- */
-  #login-screen{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--ink); z-index:100;}
-  .login-box{background:var(--white); padding:48px 40px; border-radius:6px; width:320px;}
-  .login-box h1{font-size:26px; margin-bottom:6px;}
-  .login-box p{color:var(--ink-soft); font-size:14px; margin:0 0 24px;}
-  .login-box input{width:100%; margin-bottom:14px; font-family:'IBM Plex Sans',sans-serif; font-size:14px; padding:10px 12px; border:1px solid var(--line); border-radius:4px; background:var(--white); color:var(--ink);}
-  .login-box input:focus{outline:none; border-color:var(--accent);}
-  .login-error{color:var(--error); font-size:13px; min-height:18px; margin-bottom:6px;}
-  .btn-login{width:100%; font-family:'IBM Plex Mono',monospace; font-size:13px; text-transform:uppercase; letter-spacing:.04em; background:var(--ink); color:var(--white); border:none; padding:12px; border-radius:3px; cursor:pointer;}
-  .btn-login:hover{background:var(--accent);}
+  #login-screen{
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg, #FDFBF9 0%, #F5D5D0 100%);
+    z-index:100; padding:20px;
+  }
+  .login-box{
+    background:var(--white);
+    padding:56px 48px;
+    border-radius:2px;
+    width:100%; max-width:420px;
+    box-shadow:0 30px 60px -20px rgba(201,143,138,.25);
+    border-top:3px solid var(--rose);
+    text-align:center;
+  }
+  .login-logo{
+    width:220px; max-width:100%;
+    margin:0 auto 26px; display:block;
+  }
+  .login-box h1{font-size:30px; color:var(--ink); margin-bottom:4px; font-weight:600;}
+  .login-box .sub{
+    color:var(--ink-soft); font-size:11.5px;
+    text-transform:uppercase; letter-spacing:.28em;
+    margin-bottom:32px; font-weight:400;
+  }
+  .login-box input{
+    width:100%; padding:14px 16px; margin-bottom:14px;
+    font-family:'Jost',sans-serif; font-size:15px; font-weight:300;
+    border:1px solid var(--line); border-radius:2px;
+    background:var(--cream); color:var(--ink);
+    transition:border-color .2s, background .2s;
+  }
+  .login-box input:focus{
+    outline:none; border-color:var(--rose); background:var(--white);
+  }
+  .login-error{color:var(--error); font-size:13px; min-height:20px; margin-bottom:8px;}
+  .btn-login{
+    width:100%;
+    font-family:'Jost',sans-serif; font-size:13px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.22em;
+    background:var(--ink); color:var(--white);
+    border:none; padding:15px; border-radius:2px;
+    cursor:pointer; transition:all .3s ease;
+  }
+  .btn-login:hover{background:var(--rose-deep); letter-spacing:.28em;}
 
-  header{padding:56px 0 36px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-end; gap:20px;}
-  header h1{font-size:clamp(28px,4vw,40px);}
-  header p{color:var(--ink-soft); margin-top:10px; max-width:56ch;}
+  /* ---------- HEADER ---------- */
+  header{
+    padding:48px 0 36px;
+    border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; gap:24px;
+    flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:center; gap:20px;}
+  .brand img{width:64px; height:auto;}
+  .brand-text h1{font-size:clamp(24px,3vw,32px); line-height:1; color:var(--ink);}
+  .brand-text .eyebrow{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.32em;
+    color:var(--rose-deep); margin-bottom:6px; font-weight:500;
+  }
+  .brand-text .sub{font-size:12.5px; color:var(--ink-soft); margin-top:4px; font-style:italic;}
   .saludo{text-align:right; font-size:14px; color:var(--ink-soft);}
-  .btn-salir{background:none; border:none; color:var(--accent); font-family:'IBM Plex Mono',monospace; font-size:12.5px; text-transform:uppercase; cursor:pointer; margin-top:4px;}
+  .saludo strong{color:var(--ink); font-weight:500; font-family:'Cormorant Garamond',serif; font-size:18px; display:block;}
+  .btn-salir{
+    background:none; border:none; color:var(--rose-deep);
+    font-family:'Jost',sans-serif; font-size:11px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.2em; cursor:pointer;
+    margin-top:6px; padding:4px 0; border-bottom:1px solid transparent;
+    transition:border-color .2s;
+  }
+  .btn-salir:hover{border-bottom-color:var(--rose-deep);}
 
-  main{padding:40px 0 80px;}
-  #estado{color:var(--ink-soft); font-size:14px; margin-bottom:20px;}
-  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:22px;}
+  /* ---------- MAIN ---------- */
+  main{padding:48px 0 100px;}
+  #estado{color:var(--ink-soft); font-size:14px; margin-bottom:28px; font-style:italic;}
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr));
+    gap:32px;
+  }
 
-  .curso{background:var(--white); border:1px solid var(--line); border-radius:6px; overflow:hidden; display:flex; flex-direction:column;}
-  .curso img{width:100%; aspect-ratio:16/9; object-fit:cover; background:var(--paper);}
-  .curso-body{padding:18px; display:flex; flex-direction:column; gap:8px; flex:1;}
-  .curso-body h3{font-size:19px; line-height:1.2;}
-  .curso-body p.desc{font-size:14px; color:var(--ink-soft); flex:1;}
-  .meta{display:flex; flex-wrap:wrap; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-soft);}
-  .meta span{border:1px solid var(--line); border-radius:2px; padding:3px 8px;}
+  /* ---------- CARD CURSO ---------- */
+  .curso{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:2px;
+    overflow:hidden;
+    display:flex; flex-direction:column;
+    transition:transform .4s ease, box-shadow .4s ease;
+    position:relative;
+  }
+  .curso::before{
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg, var(--rose-soft), var(--rose), var(--rose-soft));
+    transform:scaleX(0); transform-origin:left;
+    transition:transform .5s ease;
+  }
+  .curso:hover{transform:translateY(-4px); box-shadow:0 24px 48px -24px rgba(201,143,138,.28);}
+  .curso:hover::before{transform:scaleX(1);}
+  .curso-img{
+    width:100%; aspect-ratio:16/10; object-fit:cover;
+    background:var(--paper); display:block;
+  }
+  .curso-body{padding:26px 24px 22px; display:flex; flex-direction:column; gap:12px; flex:1;}
+  .curso-body .eyebrow{
+    font-size:10px; text-transform:uppercase; letter-spacing:.3em;
+    color:var(--rose-deep); font-weight:500;
+  }
+  .curso-body h3{font-size:26px; line-height:1.15; color:var(--ink);}
+  .curso-body p.desc{font-size:14px; color:var(--ink-soft); flex:1; line-height:1.7;}
+  .meta{
+    display:flex; flex-wrap:wrap; gap:8px;
+    font-size:11px; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:.12em;
+  }
+  .meta span{
+    border:1px solid var(--line); border-radius:2px;
+    padding:5px 11px; font-weight:400;
+  }
+  .btn-ver{
+    margin-top:10px; align-self:flex-start;
+    font-family:'Jost',sans-serif; font-size:11.5px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.22em;
+    background:transparent; color:var(--ink);
+    border:1px solid var(--ink);
+    padding:12px 22px; border-radius:2px; cursor:pointer;
+    transition:all .3s ease;
+  }
+  .btn-ver:hover{background:var(--ink); color:var(--white); letter-spacing:.28em;}
+  .btn-ver.abierto{background:var(--rose-deep); color:var(--white); border-color:var(--rose-deep);}
 
-  .btn-ver{margin-top:6px; align-self:flex-start; font-family:'IBM Plex Mono',monospace; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; background:var(--ink); color:var(--white); border:none; padding:10px 16px; border-radius:3px; cursor:pointer;}
-  .btn-ver:hover{background:var(--accent);}
+  /* ---------- DETALLE ---------- */
+  .detalle{
+    display:none;
+    border-top:1px solid var(--line);
+    padding:28px 24px;
+    background:linear-gradient(180deg, var(--paper) 0%, var(--white) 100%);
+  }
+  .detalle.abierto{display:block; animation:fade .5s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);}}
 
-  .detalle{display:none; border-top:1px solid var(--line); padding:18px; background:var(--paper);}
-  .detalle.abierto{display:block;}
-  .clase{margin-bottom:22px;}
-  .clase:last-child{margin-bottom:0;}
-  .clase h4{font-size:15px; margin-bottom:8px;}
-  .clase iframe{width:100%; aspect-ratio:16/9; border:none; border-radius:4px; margin-bottom:10px; display:block;}
-  .lista-pdf a{display:block; font-size:14px; color:var(--ink); text-decoration:none; padding:8px 10px; border:1px solid var(--line); border-radius:3px; background:var(--white); margin-bottom:6px;}
-  .lista-pdf a:hover{border-color:var(--accent);}
+  .detalle .desc-larga{
+    font-size:14.5px; color:var(--ink-soft); line-height:1.8;
+    margin-bottom:28px; white-space:pre-line;
+    padding-left:16px; border-left:2px solid var(--rose-soft);
+  }
 
-  #vacio{text-align:center; padding:60px 20px; color:var(--ink-soft);}
-  #error{color:var(--error); padding:20px 0;}
+  .clase{margin-bottom:32px; padding-bottom:28px; border-bottom:1px dashed var(--line);}
+  .clase:last-child{margin-bottom:0; padding-bottom:0; border-bottom:none;}
+  .clase h4{
+    font-size:19px; color:var(--ink); margin-bottom:14px;
+    display:flex; align-items:baseline; gap:12px;
+  }
+  .clase h4 .orden{
+    font-family:'Jost',sans-serif; font-size:11px; font-weight:500;
+    color:var(--rose-deep); letter-spacing:.2em;
+    padding-bottom:2px;
+  }
+  .clase iframe{
+    width:100%; aspect-ratio:16/9; border:none;
+    border-radius:2px; margin-bottom:14px; display:block;
+    box-shadow:0 8px 24px -12px rgba(201,143,138,.3);
+  }
+  .lista-pdf a{
+    display:flex; align-items:center; gap:10px;
+    font-size:14px; color:var(--ink); text-decoration:none;
+    padding:13px 16px; border:1px solid var(--line); border-radius:2px;
+    background:var(--white); margin-bottom:8px;
+    transition:all .25s ease;
+  }
+  .lista-pdf a::before{
+    content:'↓'; font-size:14px; color:var(--rose-deep);
+    font-weight:500;
+  }
+  .lista-pdf a:hover{border-color:var(--rose); background:var(--rose-soft);}
+
+  #vacio, #error{
+    text-align:center; padding:80px 20px;
+    color:var(--ink-soft); font-size:15px; font-style:italic;
+  }
+  #error{color:var(--error);}
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width:640px){
+    header{flex-direction:column; align-items:flex-start; padding:36px 0 28px;}
+    .saludo{text-align:left;}
+    .brand img{width:52px;}
+    .login-box{padding:40px 28px;}
+    .login-logo{width:180px;}
+    .grid{grid-template-columns:1fr; gap:24px;}
+  }
 </style>
 </head>
 <body>
@@ -67,8 +229,9 @@
 <!-- ===================== LOGIN ===================== -->
 <div id="login-screen">
   <div class="login-box">
-    <h1>Academia Virtual</h1>
-    <p>Ingresá con el email y la contraseña que te dieron en el instituto.</p>
+    <img class="login-logo" src="logo-completo.png" alt="Instituto Mariana Barrera">
+    <h1>Mariana Barrera</h1>
+    <div class="sub">Aula Virtual</div>
     <input id="login-email" type="text" placeholder="Email" autocomplete="username">
     <input id="login-pass" type="password" placeholder="Contraseña" autocomplete="current-password">
     <div class="login-error" id="login-error"></div>
@@ -79,19 +242,24 @@
 <!-- ===================== CLASSROOM ===================== -->
 <div id="app" style="display:none">
   <header class="wrap">
-    <div>
-      <h1>Academia Virtual</h1>
-      <p>Estos son los cursos en los que estás inscripto y habilitado.</p>
+    <div class="brand">
+      <img src="logo-loto.png" alt="Instituto Mariana Barrera">
+      <div class="brand-text">
+        <div class="eyebrow">Aula Virtual</div>
+        <h1>Mariana Barrera</h1>
+        <div class="sub">Instituto de Estética &amp; Cosmatría</div>
+      </div>
     </div>
     <div class="saludo">
-      <div id="saludo-nombre"></div>
+      <div>Bienvenida</div>
+      <strong id="saludo-nombre"></strong>
       <button class="btn-salir" onclick="logout()">Cerrar sesión</button>
     </div>
   </header>
 
   <main>
     <div class="wrap">
-      <div id="estado" class="mono">Cargando tus cursos…</div>
+      <div id="estado">Cargando tus cursos…</div>
       <div id="grid" class="grid"></div>
       <div id="vacio" style="display:none;">Todavía no tenés cursos habilitados. Consultá con el instituto.</div>
       <div id="error" style="display:none;"></div>
@@ -100,7 +268,7 @@
 </div>
 
 <script>
-  // Pegá acá la URL /exec del Apps Script del CLASSROOM (Code_Classroom.gs)
+  // ⚠️ Reemplazá esta URL por la de tu Apps Script del CLASSROOM
   const API_URL = 'https://script.google.com/macros/s/AKfycbyNPTjRExPbY9QfSG_eyp2qndNdqYsmhJe64CzEOSnJPOUba6sGeJXsZEwW805z2F-j/exec';
 
   const gridEl = document.getElementById('grid');
@@ -120,19 +288,19 @@
   async function doLogin() {
     const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-pass').value;
-    const errorEl2 = document.getElementById('login-error');
-    errorEl2.textContent = '';
-    if (!email || !password) { errorEl2.textContent = 'Completá email y contraseña.'; return; }
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = '';
+    if (!email || !password) { errEl.textContent = 'Completá email y contraseña.'; return; }
     try {
       const result = await api('loginAlumno', { email, password });
       if (result.success) {
         sessionStorage.setItem('alumno', JSON.stringify(result.alumno));
         mostrarApp(result.alumno);
       } else {
-        errorEl2.textContent = 'Email o contraseña incorrectos.';
+        errEl.textContent = 'Email o contraseña incorrectos.';
       }
     } catch (e) {
-      errorEl2.textContent = 'No se pudo conectar con el servidor.';
+      errEl.textContent = 'No se pudo conectar con el servidor.';
     }
   }
 
@@ -144,7 +312,7 @@
   function mostrarApp(alumno) {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    document.getElementById('saludo-nombre').textContent = 'Hola, ' + (alumno.Nombre || '');
+    document.getElementById('saludo-nombre').textContent = alumno.Nombre || '';
     cargarCursos(alumno.ID_Alumno);
   }
 
@@ -166,25 +334,29 @@
     const card = document.createElement('div');
     card.className = 'curso';
     card.innerHTML = `
-      ${curso.Imagen_URL ? `<img src="${curso.Imagen_URL}" alt="${curso.Nombre || ''}">` : ''}
+      ${curso.Imagen_URL
+        ? `<img class="curso-img" src="${curso.Imagen_URL}" alt="${curso.Nombre || ''}">`
+        : `<div class="curso-img"></div>`}
       <div class="curso-body">
+        <div class="eyebrow">Curso</div>
         <h3>${curso.Nombre || 'Curso sin nombre'}</h3>
         <p class="desc">${curso.Descripcion_Programa || ''}</p>
         <div class="meta">
           ${curso.Duracion ? `<span>${curso.Duracion}</span>` : ''}
-          ${curso.Puntaje_Minimo_Aprobacion ? `<span>Aprobación: ${curso.Puntaje_Minimo_Aprobacion}</span>` : ''}
+          ${curso.Puntaje_Minimo_Aprobacion ? `<span>Aprobación ${curso.Puntaje_Minimo_Aprobacion}</span>` : ''}
         </div>
         <button class="btn-ver">Ver contenido</button>
       </div>
       <div class="detalle">
-        ${curso.Descripcion_Larga ? `<p style="font-size:14px;color:var(--ink-soft);margin-bottom:16px;white-space:pre-line;">${curso.Descripcion_Larga}</p>` : ''}
-        ${(curso.Clases || []).map(clase => renderClase(clase)).join('') || '<p>Todavía no hay clases cargadas para este curso.</p>'}
+        ${curso.Descripcion_Larga ? `<div class="desc-larga">${curso.Descripcion_Larga}</div>` : ''}
+        ${(curso.Clases || []).map(renderClase).join('') || '<p style="color:var(--ink-soft);font-style:italic;">Todavía no hay clases cargadas para este curso.</p>'}
       </div>
     `;
     const boton = card.querySelector('.btn-ver');
     const detalle = card.querySelector('.detalle');
     boton.addEventListener('click', () => {
       const abierto = detalle.classList.toggle('abierto');
+      boton.classList.toggle('abierto', abierto);
       boton.textContent = abierto ? 'Ocultar contenido' : 'Ver contenido';
     });
     return card;
@@ -194,21 +366,21 @@
     const contenidos = clase.Contenidos || [];
     return `
       <div class="clase">
-        <h4>${clase.Orden ? clase.Orden + '. ' : ''}${clase.Titulo || ''}</h4>
-        ${contenidos.length ? contenidos.map(renderContenido).join('') : '<p style="font-size:14px;color:var(--ink-soft);">Todavía no hay contenidos cargados para esta clase.</p>'}
-      </div>
-    `;
+        <h4>${clase.Orden ? `<span class="orden">${String(clase.Orden).padStart(2, '0')}</span>` : ''}${clase.Titulo || ''}</h4>
+        ${contenidos.length
+          ? contenidos.map(renderContenido).join('')
+          : '<p style="font-size:13.5px;color:var(--ink-soft);font-style:italic;">Sin contenidos cargados aún.</p>'}
+      </div>`;
   }
 
   function renderContenido(item) {
     if (item.Tipo === 'Video') {
-      return `
-        <div style="margin-bottom:14px;">
-          <p style="font-size:13px;color:var(--ink-soft);margin-bottom:6px;">🎥 ${item.Nombre || 'Video'}</p>
-          <iframe src="https://www.youtube.com/embed/${item.Link}" title="${item.Nombre || 'Video'}" allowfullscreen></iframe>
-        </div>`;
+      return `<div style="margin-bottom:18px;">
+        <p style="font-size:12px;color:var(--rose-deep);text-transform:uppercase;letter-spacing:.18em;margin-bottom:8px;">▶ ${item.Nombre || 'Video'}</p>
+        <iframe src="https://www.youtube.com/embed/${item.Link}" title="${item.Nombre || 'Video'}" allowfullscreen></iframe>
+      </div>`;
     }
-    return `<div class="lista-pdf"><a href="${item.Link}" target="_blank" rel="noopener">📄 ${item.Nombre || 'Descargar PDF'}</a></div>`;
+    return `<div class="lista-pdf"><a href="${item.Link}" target="_blank" rel="noopener">${item.Nombre || 'Descargar PDF'}</a></div>`;
   }
 
   // Si ya había una sesión activa, entra directo
