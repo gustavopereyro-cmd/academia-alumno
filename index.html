@@ -432,4 +432,417 @@
 </div>
 
 <script>
-  // URL del Apps
+  // URL del Apps Script del CLASSROOM (no cambia: se publica como "nueva versión" de la misma implementación)
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyNPTjRExPbY9QfSG_eyp2qndNdqYsmhJe64CzEOSnJPOUba6sGeJXsZEwW805z2F-j/exec';
+
+  const gridEl = document.getElementById('grid');
+  const estadoEl = document.getElementById('estado');
+  const vacioEl = document.getElementById('vacio');
+  const errorEl = document.getElementById('error');
+
+  // Borra la sesión de la versión anterior, que guardaba datos personales
+  sessionStorage.removeItem('alumno');
+
+  /* ---------- Helpers de seguridad ---------- */
+
+  // Escapa texto antes de meterlo en el HTML
+  function esc(v) {
+    return (v === undefined || v === null) ? '' :
+      String(v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+
+  // Solo acepta links que empiecen con https:// (bloquea javascript: y similares)
+  function urlSegura(v) {
+    const s = String(v || '').trim();
+    return /^https:\/\//i.test(s) ? s : '';
+  }
+
+  // Solo acepta IDs de YouTube válidos (letras, números, - y _)
+  function idYoutubeSeguro(v) {
+    const s = String(v || '').trim();
+    return /^[A-Za-z0-9_-]{6,20}$/.test(s) ? s : '';
+  }
+
+  /* ---------- API ---------- */
+
+  async function api(action, payload) {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, ...payload })
+    });
+    return res.json();
+  }
+
+  /* ---------- Login / sesión ---------- */
+
+  async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-pass').value;
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = '';
+    if (!email || !password) { errEl.textContent = 'Completá email y contraseña.'; return; }
+    const btn = document.getElementById('btn-login');
+    btn.disabled = true; btn.textContent = 'Ingresando…';
+    try {
+      const result = await api('loginAlumno', { email, password });
+      if (result.success && result.token) {
+        // Solo se guarda el token y el nombre para el saludo
+        sessionStorage.setItem('alumno_token', result.token);
+        sessionStorage.setItem('alumno_nombre', (result.alumno && result.alumno.Nombre) || '');
+        mostrarApp(result);
+      } else if (result.bloqueado) {
+        errEl.textContent = 'Demasiados intentos fallidos. Esperá 10 minutos y volvé a probar.';
+      } else {
+        errEl.textContent = 'Email o contraseña incorrectos.';
+      }
+    } catch (e) {
+      errEl.textContent = 'No se pudo conectar con el servidor.';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Ingresar';
+    }
+  }
+
+  // Ingresar apretando Enter
+  ['login-email', 'login-pass'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  });
+
+  function logout() {
+    sessionStorage.removeItem('alumno_token');
+    sessionStorage.removeItem('alumno_nombre');
+    location.reload();
+  }
+
+  function mostrarApp(datos) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('saludo-nombre').textContent = sessionStorage.getItem('alumno_nombre') || '';
+    // Si el login ya trajo los cursos, se muestran sin otra llamada al servidor
+    if (datos && Array.isArray(datos.cursos)) renderCursos(datos.cursos, datos.certificados || []);
+    else cargarCursos();
+  }
+
+  function mostrarSkeletons(cantidad) {
+    gridEl.innerHTML = '';
+    for (let i = 0; i < cantidad; i++) {
+      const sk = document.createElement('div');
+      sk.className = 'skeleton-card';
+      sk.innerHTML = `<div class="skeleton-img"></div>
+        <div class="skeleton-body">
+          <div class="skeleton-line titulo"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line corta"></div>
+        </div>`;
+      gridEl.appendChild(sk);
+    }
+  }
+
+  function renderCursos(cursos, certificados) {
+    CURSOS = cursos;
+    renderCertificados(certificados || []);
+    gridEl.innerHTML = '';
+    estadoEl.style.display = 'none';
+    if (!cursos.length) { vacioEl.style.display = 'block'; return; }
+    cursos.forEach(curso => gridEl.appendChild(crearTarjeta(curso)));
+    aplicarRuta();
+  }
+
+  /* ---------- Mis certificados ---------- */
+
+  let CERTIFICADOS = [];
+
+  const ICONO_SELLO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="9" r="6"/><path d="M9 14.2 7.5 22l4.5-2.5 4.5 2.5-1.5-7.8"/><path d="m9.7 9 1.6 1.6 3-3.2"/></svg>`;
+
+  function normalizar(t) {
+    return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  // Link de descarga directa de Drive (si el link es de Drive)
+  function linkDescarga(url) {
+    const m = String(url).match(/\/d\/([A-Za-z0-9_-]+)/) || String(url).match(/[?&]id=([A-Za-z0-9_-]+)/);
+    return m ? 'https://drive.google.com/uc?export=download&id=' + m[1] : '';
+  }
+
+  function botonesCertificado(c, textoDescarga) {
+    const ver = urlSegura(c.URL_PDF);
+    if (!ver) return '';
+    const bajar = linkDescarga(ver);
+    return `<a class="btn-cert" href="${esc(ver)}" target="_blank" rel="noopener">Ver</a>
+      ${bajar ? `<a class="btn-cert primario" href="${esc(bajar)}">${textoDescarga}</a>` : ''}`;
+  }
+
+  function renderCertificados(certificados) {
+    CERTIFICADOS = certificados.filter(c => urlSegura(c.URL_PDF));
+    const seccion = document.getElementById('mis-certificados');
+    const link = document.getElementById('link-cert');
+    if (!CERTIFICADOS.length) { seccion.style.display = 'none'; link.style.display = 'none'; return; }
+
+    document.getElementById('lista-certificados').innerHTML = CERTIFICADOS.map(c => `
+      <div class="cert">
+        <div class="sello">${ICONO_SELLO}</div>
+        <div class="cert-info">
+          <div class="eyebrow">${esc(c.Tipo || 'Diploma')}</div>
+          <h4>${esc(c.Curso)}</h4>
+          <div class="cert-meta">${[c.Fecha, c.Certificado].filter(Boolean).map(esc).join(' · ')}</div>
+          <div class="cert-acciones">${botonesCertificado(c, 'Descargar PDF')}</div>
+        </div>
+      </div>`).join('');
+    seccion.style.display = 'block';
+    link.textContent = `Mis certificados (${CERTIFICADOS.length}) ↓`;
+    link.style.display = 'inline-block';
+  }
+
+  function irACertificados() {
+    document.getElementById('mis-certificados').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function certificadoDelCurso(curso) {
+    const nombre = normalizar(curso.Nombre);
+    return CERTIFICADOS.find(c => normalizar(c.Curso) === nombre) || null;
+  }
+
+  async function cargarCursos() {
+    mostrarSkeletons(3);
+    try {
+      const data = await api('getCursosAlumno', { token: sessionStorage.getItem('alumno_token') });
+
+      // Sesión vencida o inválida: volver al login
+      if (data.sesionInvalida) {
+        sessionStorage.removeItem('alumno_token');
+        sessionStorage.removeItem('alumno_nombre');
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('login-error').textContent = 'Tu sesión venció. Volvé a ingresar.';
+        return;
+      }
+      if (data.error) throw new Error(data.error);
+
+      renderCursos(data.cursos || [], data.certificados || []);
+    } catch (e) {
+      gridEl.innerHTML = '';
+      errorEl.style.display = 'block';
+      errorEl.textContent = 'No se pudieron cargar tus cursos. Intentá de nuevo más tarde.';
+    }
+  }
+
+  /* ---------- Grilla de cursos ---------- */
+
+  let CURSOS = [];
+
+  function contarContenidos(clases) {
+    let videos = 0, pdfs = 0;
+    (clases || []).forEach(c => (c.Contenidos || []).forEach(x => { if (x.Tipo === 'Video') videos++; else pdfs++; }));
+    return { videos, pdfs };
+  }
+
+  function crearTarjeta(curso) {
+    const card = document.createElement('div');
+    card.className = 'curso';
+    const img = urlSegura(curso.Imagen_URL);
+    const nClases = (curso.Clases || []).length;
+    card.innerHTML = `
+      ${img
+        ? `<img class="curso-img" src="${esc(img)}" alt="${esc(curso.Nombre)}" loading="lazy">`
+        : `<div class="curso-img"></div>`}
+      <div class="curso-body">
+        <div class="eyebrow">Curso</div>
+        <h3>${esc(curso.Nombre) || 'Curso sin nombre'}</h3>
+        <p class="desc">${esc(curso.Descripcion_Programa)}</p>
+        <div class="meta">
+          ${curso.Duracion ? `<span>${esc(curso.Duracion)}</span>` : ''}
+          ${nClases ? `<span>${nClases} ${nClases === 1 ? 'clase' : 'clases'}</span>` : ''}
+        </div>
+        <button class="btn-ver">Entrar al curso</button>
+      </div>`;
+    const abrir = () => abrirCurso(curso.ID_Curso);
+    card.querySelector('.btn-ver').addEventListener('click', abrir);
+    const imgEl = card.querySelector('.curso-img');
+    imgEl.style.cursor = 'pointer';
+    imgEl.addEventListener('click', abrir);
+    return card;
+  }
+
+  /* ---------- Navegación (el botón "atrás" del celular vuelve a Mis cursos) ---------- */
+
+  const vistaCursosEl = document.getElementById('vista-cursos');
+  const vistaCursoEl = document.getElementById('vista-curso');
+  let entroDesdeGrilla = false;
+
+  function abrirCurso(idCurso) {
+    entroDesdeGrilla = true;
+    location.hash = 'curso=' + encodeURIComponent(idCurso);
+  }
+
+  function volverACursos() {
+    if (entroDesdeGrilla) history.back();
+    else location.hash = '';
+  }
+
+  function aplicarRuta() {
+    const m = location.hash.match(/curso=([^&]+)/);
+    const curso = m ? CURSOS.find(c => String(c.ID_Curso) === decodeURIComponent(m[1])) : null;
+    if (curso) mostrarCurso(curso);
+    else mostrarGrilla();
+  }
+  window.addEventListener('hashchange', aplicarRuta);
+
+  function mostrarGrilla() {
+    vistaCursoEl.innerHTML = '';           // corta cualquier video que esté sonando
+    vistaCursoEl.style.display = 'none';
+    vistaCursosEl.style.display = 'block';
+    cursoActual = null;
+  }
+
+  /* ---------- Vista del curso ---------- */
+
+  let cursoActual = null;
+  let claseIdx = 0;
+  let videosClase = [];
+
+  // Recuerda la última clase vista de cada curso (solo en este navegador)
+  function leerUltimaClase(idCurso) {
+    try { return localStorage.getItem('aula_ultima_' + idCurso); } catch (e) { return null; }
+  }
+  function guardarUltimaClase(idCurso, idClase) {
+    try { localStorage.setItem('aula_ultima_' + idCurso, String(idClase)); } catch (e) {}
+  }
+
+  function numeroClase(clase, i) {
+    return String(clase.Orden || (i + 1)).padStart(2, '0');
+  }
+
+  function mostrarCurso(curso) {
+    cursoActual = curso;
+    const clases = curso.Clases || [];
+    vistaCursosEl.style.display = 'none';
+    vistaCursoEl.style.display = 'block';
+
+    vistaCursoEl.innerHTML = `
+      <div class="curso-top">
+        <div>
+          <button class="btn-volver" data-accion="volver">← Mis cursos</button>
+          <h2>${esc(curso.Nombre)}</h2>
+        </div>
+        ${clases.length ? `<div>
+          <div class="avance" id="avance"></div>
+          <div class="barra-avance"><span id="barra-avance"></span></div>
+        </div>` : ''}
+      </div>
+      ${(() => {
+        const cert = certificadoDelCurso(curso);
+        return cert ? `
+        <div class="banner-cert">
+          <div class="sello">${ICONO_SELLO}</div>
+          <div class="texto">
+            <strong>¡Completaste este curso!</strong>
+            <span>Tu ${esc(String(cert.Tipo || 'diploma').toLowerCase())} ya está disponible para descargar.</span>
+          </div>
+          <div class="cert-acciones" style="margin-top:0;">${botonesCertificado(cert, 'Descargar')}</div>
+        </div>` : '';
+      })()}
+      ${curso.Descripcion_Larga ? `
+        <details class="sobre-curso">
+          <summary>Sobre este curso</summary>
+          <div class="desc-larga">${esc(curso.Descripcion_Larga)}</div>
+        </details>` : ''}
+      ${clases.length ? `
+        <div class="layout-curso">
+          <aside class="lista-clases">
+            <div class="titulo-lista">Clases del curso</div>
+            ${clases.map((c, i) => {
+              const n = contarContenidos([c]);
+              const partes = [];
+              if (n.videos) partes.push(n.videos + (n.videos === 1 ? ' video' : ' videos'));
+              if (n.pdfs) partes.push(n.pdfs + ' PDF');
+              return `<button class="item-clase" data-clase="${i}">
+                <span class="num">${esc(numeroClase(c, i))}</span>
+                <span class="txt"><strong>${esc(c.Titulo)}</strong><small>${partes.join(' · ') || 'Sin contenidos aún'}</small></span>
+              </button>`;
+            }).join('')}
+          </aside>
+          <section class="zona-clase" id="zona-clase"></section>
+        </div>`
+      : '<p class="sin-contenido">Todavía no hay clases cargadas para este curso.</p>'}
+    `;
+    window.scrollTo(0, 0);
+
+    if (clases.length) {
+      const ultima = leerUltimaClase(curso.ID_Curso);
+      const i = clases.findIndex(c => String(c.ID_Clase) === ultima);
+      seleccionarClase(i >= 0 ? i : 0, false);
+    }
+  }
+
+  function seleccionarClase(i, desplazar) {
+    const clases = cursoActual.Clases || [];
+    if (i < 0 || i >= clases.length) return;
+    claseIdx = i;
+    const clase = clases[i];
+    guardarUltimaClase(cursoActual.ID_Curso, clase.ID_Clase);
+
+    vistaCursoEl.querySelectorAll('.item-clase').forEach((el, j) => el.classList.toggle('activa', j === i));
+    document.getElementById('avance').textContent = `Clase ${i + 1} de ${clases.length}`;
+    document.getElementById('barra-avance').style.width = ((i + 1) / clases.length * 100) + '%';
+
+    const contenidos = clase.Contenidos || [];
+    videosClase = contenidos.filter(x => x.Tipo === 'Video' && idYoutubeSeguro(x.Link));
+    const pdfs = contenidos.filter(x => x.Tipo !== 'Video' && urlSegura(x.Link));
+    const esUltima = i === clases.length - 1;
+
+    const zona = document.getElementById('zona-clase');
+    zona.innerHTML = `
+      <div class="eyebrow-clase">Clase ${esc(numeroClase(clase, i))}</div>
+      <h3>${esc(clase.Titulo)}</h3>
+      ${videosClase.length ? `
+        <div class="reproductor" id="reproductor"></div>
+        ${videosClase.length > 1
+          ? `<div class="videos-tabs">${videosClase.map((v, j) =>
+              `<button class="video-tab" data-video="${j}">▶ ${esc(v.Nombre || 'Video ' + (j + 1))}</button>`).join('')}</div>`
+          : `<p class="nombre-video">▶ ${esc(videosClase[0].Nombre || 'Video')}</p>`}` : ''}
+      ${pdfs.length ? `
+        <div class="materiales">
+          <h4>Material de la clase</h4>
+          <div class="lista-pdf">${pdfs.map(p =>
+            `<a href="${esc(urlSegura(p.Link))}" target="_blank" rel="noopener">${esc(p.Nombre || 'Descargar PDF')}</a>`).join('')}</div>
+        </div>` : ''}
+      ${!videosClase.length && !pdfs.length ? '<p class="sin-contenido">Esta clase todavía no tiene contenidos.</p>' : ''}
+      <div class="nav-clases">
+        <button class="btn-nav" data-accion="anterior" ${i === 0 ? 'disabled' : ''}>← Anterior</button>
+        <button class="btn-nav primario" data-accion="siguiente" ${esUltima ? 'disabled' : ''}>Siguiente clase →</button>
+      </div>`;
+
+    if (videosClase.length) ponerVideo(0);
+    if (desplazar) zona.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function ponerVideo(j) {
+    const v = videosClase[j];
+    const rep = document.getElementById('reproductor');
+    if (!v || !rep) return;
+    const id = idYoutubeSeguro(v.Link);
+    rep.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1"
+      title="${esc(v.Nombre || 'Video')}" referrerpolicy="strict-origin-when-cross-origin"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+      allowfullscreen></iframe>`;
+    vistaCursoEl.querySelectorAll('.video-tab').forEach((el, k) => el.classList.toggle('activa', k === j));
+  }
+
+  // Un solo manejador para todos los botones de la vista del curso
+  vistaCursoEl.addEventListener('click', e => {
+    const el = e.target.closest('button');
+    if (!el) return;
+    if (el.dataset.clase !== undefined) seleccionarClase(Number(el.dataset.clase), true);
+    else if (el.dataset.video !== undefined) ponerVideo(Number(el.dataset.video));
+    else if (el.dataset.accion === 'volver') volverACursos();
+    else if (el.dataset.accion === 'anterior') seleccionarClase(claseIdx - 1, true);
+    else if (el.dataset.accion === 'siguiente') seleccionarClase(claseIdx + 1, true);
+  });
+
+  // Si ya había una sesión activa, entra directo (el servidor valida el token)
+  if (sessionStorage.getItem('alumno_token')) { mostrarApp(); }
+</script>
+
+</body>
+</html>
