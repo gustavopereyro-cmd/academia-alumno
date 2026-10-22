@@ -1,705 +1,423 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Instituto Mariana Barrera · Aula Virtual</title>
-<link rel="icon" href="logo-loto.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --rose:#E8B4B0;
-    --rose-soft:#F5D5D0;
-    --rose-deep:#C98F8A;
-    --cream:#FDFBF9;
-    --paper:#F7F2EE;
-    --ink:#4A4444;
-    --ink-soft:#8A8280;
-    --line:#EDE4DE;
-    --white:#FFFFFF;
-    --error:#C97B74;
-  }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  body{
-    background:var(--cream); color:var(--ink);
-    font-family:'Jost', sans-serif;
-    font-weight:300;
-    line-height:1.6;
-    -webkit-font-smoothing:antialiased;
-  }
-  h1,h2,h3,h4{font-family:'Cormorant Garamond', serif; font-weight:500; letter-spacing:.005em;}
-  .wrap{max-width:1120px; margin:0 auto; padding:0 28px;}
+/**
+ * ============================================================
+ *  CLASSROOM DEL ALUMNO + CATÁLOGO PÚBLICO - ACADEMIA VIRTUAL
+ *  Backend (Google Apps Script) — v2: sesiones por token + caché
+ * ============================================================
+ *  ACCIONES DISPONIBLES:
+ *   - loginAlumno          → login de alumnos (devuelve token + sus cursos)
+ *   - getCursosAlumno      → cursos + clases + materiales del alumno (requiere token)
+ *   - GET ?action=catalogo → catálogo público liviano (sin login)
+ *   - GET ?action=detalle  → Descripcion_Larga de un curso publicado
+ *   - GET ?action=limpiarCache&key=... → limpia el caché (lo llama el panel admin)
+ *
+ *  INSTRUCCIONES:
+ *   1. Reemplazá TODO el código del proyecto por este archivo.
+ *   2. Implementar → Administrar implementaciones → ✏️
+ *      → Versión: NUEVA VERSIÓN → Implementar.
+ * ============================================================
+ */
 
-  /* ---------- LOGIN ---------- */
-  #login-screen{
-    position:fixed; inset:0;
-    display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(135deg, #FDFBF9 0%, #F5D5D0 100%);
-    z-index:100; padding:20px;
-  }
-  .login-box{
-    background:var(--white);
-    padding:56px 48px;
-    border-radius:2px;
-    width:100%; max-width:420px;
-    box-shadow:0 30px 60px -20px rgba(201,143,138,.25);
-    border-top:3px solid var(--rose);
-    text-align:center;
-  }
-  .login-logo{
-    width:220px; max-width:100%;
-    margin:0 auto 26px; display:block;
-  }
-  .login-box h1{font-size:30px; color:var(--ink); margin-bottom:4px; font-weight:600;}
-  .login-box .sub{
-    color:var(--ink-soft); font-size:11.5px;
-    text-transform:uppercase; letter-spacing:.28em;
-    margin-bottom:32px; font-weight:400;
-  }
-  .login-box input{
-    width:100%; padding:14px 16px; margin-bottom:14px;
-    font-family:'Jost',sans-serif; font-size:15px; font-weight:300;
-    border:1px solid var(--line); border-radius:2px;
-    background:var(--cream); color:var(--ink);
-    transition:border-color .2s, background .2s;
-  }
-  .login-box input:focus{
-    outline:none; border-color:var(--rose); background:var(--white);
-  }
-  .login-error{color:var(--error); font-size:13px; min-height:20px; margin-bottom:8px;}
-  .btn-login{
-    width:100%;
-    font-family:'Jost',sans-serif; font-size:13px; font-weight:500;
-    text-transform:uppercase; letter-spacing:.22em;
-    background:var(--ink); color:var(--white);
-    border:none; padding:15px; border-radius:2px;
-    cursor:pointer; transition:all .3s ease;
-  }
+const SHEET_ID = '1S3eWZIwIbpdIJv35GPd3JI_Mp3v5fy0MTCG13YQzEYw';
 
-  /* ---------- HEADER ---------- */
-  header{
-    padding:48px 0 36px;
-    border-bottom:1px solid var(--line);
-    display:flex; justify-content:space-between; align-items:center; gap:24px;
-    flex-wrap:wrap;
-  }
-  .brand{display:flex; align-items:center; gap:20px;}
-  .brand img{width:64px; height:auto;}
-  .brand-text h1{font-size:clamp(24px,3vw,32px); line-height:1; color:var(--ink);}
-  .brand-text .eyebrow{
-    font-size:10.5px; text-transform:uppercase; letter-spacing:.32em;
-    color:var(--rose-deep); margin-bottom:6px; font-weight:500;
-  }
-  .brand-text .sub{font-size:12.5px; color:var(--ink-soft); margin-top:4px; font-style:italic;}
-  .saludo{text-align:right; font-size:14px; color:var(--ink-soft);}
-  .saludo strong{color:var(--ink); font-weight:500; font-family:'Cormorant Garamond',serif; font-size:18px; display:block;}
-  .btn-salir{
-    background:none; border:none; color:var(--rose-deep);
-    font-family:'Jost',sans-serif; font-size:11px; font-weight:500;
-    text-transform:uppercase; letter-spacing:.2em; cursor:pointer;
-    margin-top:6px; padding:4px 0; border-bottom:1px solid transparent;
-    transition:border-color .2s;
-  }
+// Clave compartida con el panel admin para limpiar el caché.
+// Tiene que ser EXACTAMENTE igual a la del script del panel.
+const CLAVE_LIMPIEZA = 'FK6KLsJTMv9cxSIjeOkr8_o1Ls-zOkkC';
 
-  /* ---------- MAIN ---------- */
-  main{padding:48px 0 100px;}
-  #estado{color:var(--ink-soft); font-size:14px; margin-bottom:28px; font-style:italic;}
-  .grid{
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr));
-    gap:32px;
-  }
+// Duración del caché en segundos (600 = 10 minutos).
+// Si editás la planilla a mano (sin el panel), los cambios aparecen en hasta 10 minutos.
+const CACHE_TTL_SECONDS = 600;
+const CACHE_KEY_CATALOGO = 'catalogo_publico_v2';
+const CACHE_KEY_CONTENIDO = 'contenido_v1';
 
-  /* ---------- CARD CURSO ---------- */
-  .curso{
-    background:var(--white);
-    border:1px solid var(--line);
-    border-radius:2px;
-    overflow:hidden;
-    display:flex; flex-direction:column;
-    transition:transform .4s ease, box-shadow .4s ease;
-    position:relative;
-  }
-  .curso::before{
-    content:''; position:absolute; top:0; left:0; right:0; height:3px;
-    background:linear-gradient(90deg, var(--rose-soft), var(--rose), var(--rose-soft));
-    transform:scaleX(0); transform-origin:left;
-    transition:transform .5s ease;
-  }
-  .curso-img{
-    width:100%; aspect-ratio:16/10; object-fit:cover;
-    background:var(--paper); display:block;
-  }
-  .curso-body{padding:26px 24px 22px; display:flex; flex-direction:column; gap:12px; flex:1;}
-  .curso-body .eyebrow{
-    font-size:10px; text-transform:uppercase; letter-spacing:.3em;
-    color:var(--rose-deep); font-weight:500;
-  }
-  .curso-body h3{font-size:26px; line-height:1.15; color:var(--ink);}
-  .curso-body p.desc{font-size:14px; color:var(--ink-soft); flex:1; line-height:1.7;}
-  .meta{
-    display:flex; flex-wrap:wrap; gap:8px;
-    font-size:11px; color:var(--ink-soft);
-    text-transform:uppercase; letter-spacing:.12em;
-  }
-  .meta span{
-    border:1px solid var(--line); border-radius:2px;
-    padding:5px 11px; font-weight:400;
-  }
-  .btn-ver{
-    margin-top:10px; align-self:flex-start;
-    font-family:'Jost',sans-serif; font-size:11.5px; font-weight:500;
-    text-transform:uppercase; letter-spacing:.22em;
-    background:transparent; color:var(--ink);
-    border:1px solid var(--ink);
-    padding:12px 22px; border-radius:2px; cursor:pointer;
-    transition:all .3s ease;
-  }
+// ---- Seguridad ----
+const DURACION_SESION_SEG = 12 * 60 * 60;  // la sesión del alumno dura 12 horas
+const MAX_INTENTOS_LOGIN = 5;              // intentos fallidos permitidos
+const BLOQUEO_LOGIN_SEG = 10 * 60;         // tiempo de bloqueo: 10 minutos
 
-  .desc-larga{
-    font-size:14.5px; color:var(--ink-soft); line-height:1.8;
-    white-space:pre-line; padding-left:16px; border-left:2px solid var(--rose-soft);
+/* ============================================================
+   LECTURA DE LA PLANILLA
+   ============================================================ */
+
+let _ss = null;
+function getSS() { return _ss || (_ss = SpreadsheetApp.openById(SHEET_ID)); }
+
+function getSheetByName(name) {
+  const sheet = getSS().getSheetByName(name);
+  if (!sheet) throw new Error('No se encontró la hoja "' + name + '"');
+  return sheet;
+}
+
+/** Convierte una hoja en objetos leyendo todo en UNA sola llamada. */
+function sheetToObjects(sheetName) {
+  const values = getSheetByName(sheetName).getDataRange().getValues();
+  if (values.length < 2) return [];
+  const headers = values[0];
+  const items = [];
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (row.every(c => c === '' || c === null)) continue;
+    const obj = {};
+    for (let k = 0; k < headers.length; k++) obj[headers[k]] = row[k];
+    items.push(obj);
   }
-  .lista-pdf a{
-    display:flex; align-items:center; gap:10px;
-    font-size:14px; color:var(--ink); text-decoration:none;
-    padding:13px 16px; border:1px solid var(--line); border-radius:2px;
-    background:var(--white); margin-bottom:8px;
-    transition:all .25s ease;
-  }
-  .lista-pdf a::before{content:'↓'; font-size:14px; color:var(--rose-deep); font-weight:500;}
+  return items;
+}
 
-  /* ---------- VISTA DEL CURSO ---------- */
-  #vista-curso{display:none; animation:aparecer .35s ease;}
-  @keyframes aparecer{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
-  .curso-top{
-    display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap;
-    padding-bottom:22px; margin-bottom:22px; border-bottom:1px solid var(--line);
-  }
-  .btn-volver{
-    background:none; border:none; cursor:pointer; padding:4px 0; margin-bottom:12px;
-    font-family:'Jost',sans-serif; font-size:11px; font-weight:500;
-    text-transform:uppercase; letter-spacing:.2em; color:var(--rose-deep);
-    border-bottom:1px solid transparent;
-  }
-  .curso-top h2{font-size:clamp(26px,3.4vw,38px); line-height:1.1; color:var(--ink);}
-  .avance{font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.18em; white-space:nowrap;}
-  .barra-avance{width:180px; height:3px; background:var(--line); margin-top:8px; border-radius:2px; overflow:hidden;}
-  .barra-avance span{display:block; height:100%; background:var(--rose-deep); transition:width .4s ease;}
-
-  .sobre-curso{background:var(--white); border:1px solid var(--line); border-radius:2px; margin-bottom:28px;}
-  .sobre-curso summary{
-    cursor:pointer; padding:14px 18px; list-style:none;
-    font-size:10.5px; font-weight:500; text-transform:uppercase; letter-spacing:.24em; color:var(--rose-deep);
-  }
-  .sobre-curso summary::-webkit-details-marker{display:none;}
-  .sobre-curso summary::after{content:' +'; }
-  .sobre-curso[open] summary::after{content:' –';}
-  .sobre-curso .desc-larga{margin:0 18px 18px;}
-
-  .layout-curso{display:grid; grid-template-columns:minmax(250px,320px) 1fr; gap:36px; align-items:start;}
-  .lista-clases{
-    position:sticky; top:20px; max-height:calc(100vh - 40px); overflow-y:auto;
-    background:var(--white); border:1px solid var(--line); border-radius:2px;
-  }
-  .titulo-lista{
-    padding:15px 18px; border-bottom:1px solid var(--line);
-    font-size:10.5px; font-weight:500; text-transform:uppercase; letter-spacing:.24em; color:var(--rose-deep);
-  }
-  .item-clase{
-    display:flex; gap:14px; width:100%; text-align:left; cursor:pointer;
-    background:none; border:none; border-bottom:1px solid var(--line);
-    padding:14px 18px; font-family:'Jost',sans-serif; color:var(--ink);
-    transition:background .2s;
-  }
-  .item-clase:last-child{border-bottom:none;}
-  .item-clase .num{font-size:11px; font-weight:500; color:var(--rose-deep); letter-spacing:.12em; padding-top:3px; min-width:22px;}
-  .item-clase .txt{flex:1; min-width:0;}
-  .item-clase .txt strong{display:block; font-weight:400; font-size:14.5px; line-height:1.4;}
-  .item-clase .txt small{font-size:11px; color:var(--ink-soft); letter-spacing:.04em;}
-  .item-clase.activa{background:var(--rose-soft); box-shadow:inset 3px 0 0 var(--rose-deep);}
-  .item-clase.activa .txt strong{font-weight:500;}
-
-  .zona-clase{min-width:0; scroll-margin-top:16px;}
-  .eyebrow-clase{font-size:10.5px; font-weight:500; text-transform:uppercase; letter-spacing:.28em; color:var(--rose-deep);}
-  .zona-clase h3{font-size:clamp(24px,2.8vw,32px); line-height:1.15; margin:6px 0 20px; color:var(--ink);}
-  .reproductor{
-    position:relative; width:100%; aspect-ratio:16/9; background:#1F1B1B;
-    border-radius:2px; overflow:hidden; box-shadow:0 22px 50px -26px rgba(74,68,68,.5);
-  }
-  .reproductor iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
-  .nombre-video{margin-top:12px; font-size:12px; color:var(--rose-deep); text-transform:uppercase; letter-spacing:.16em;}
-  .videos-tabs{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;}
-  .video-tab{
-    border:1px solid var(--line); background:var(--white); color:var(--ink); cursor:pointer;
-    padding:9px 14px; border-radius:2px; font-family:'Jost',sans-serif; font-size:12.5px; font-weight:400;
-  }
-  .video-tab.activa{background:var(--ink); border-color:var(--ink); color:var(--white);}
-  .materiales{margin-top:28px;}
-  .materiales h4{
-    font-family:'Jost',sans-serif; font-size:10.5px; font-weight:500;
-    text-transform:uppercase; letter-spacing:.24em; color:var(--rose-deep); margin-bottom:12px;
-  }
-  .sin-contenido{color:var(--ink-soft); font-style:italic; font-size:14.5px; padding:30px 0;}
-  .nav-clases{display:flex; justify-content:space-between; gap:12px; margin-top:34px; padding-top:22px; border-top:1px solid var(--line);}
-  .btn-nav{
-    font-family:'Jost',sans-serif; font-size:11px; font-weight:500;
-    text-transform:uppercase; letter-spacing:.18em; cursor:pointer;
-    background:transparent; color:var(--ink); border:1px solid var(--ink);
-    padding:13px 20px; border-radius:2px; transition:all .25s ease;
-  }
-  .btn-nav.primario{background:var(--ink); color:var(--white);}
-  .btn-nav:disabled{visibility:hidden;}
-
-  @media (max-width:900px){
-    .layout-curso{grid-template-columns:1fr; gap:28px;}
-    .zona-clase{order:-1;}
-    .lista-clases{position:static; max-height:none;}
-    .barra-avance{width:140px;}
-  }
-  @media (max-width:640px){
-    .curso-top{align-items:flex-start;}
-    .btn-nav{padding:12px 14px; letter-spacing:.12em;}
-  }
-
-  .btn-login:disabled{opacity:.6; cursor:wait;}
-
-  /* ---------- ESQUELETOS DE CARGA ---------- */
-  .skeleton-card{background:var(--white); border:1px solid var(--line); border-radius:2px; overflow:hidden;}
-  .skeleton-img, .skeleton-line{
-    background:linear-gradient(90deg, #F1ECE7 25%, #E8E0D8 50%, #F1ECE7 75%);
-    background-size:200% 100%; animation:shimmer 1.5s infinite linear;
-  }
-  .skeleton-img{width:100%; aspect-ratio:16/10;}
-  .skeleton-body{padding:26px 24px 22px; display:flex; flex-direction:column; gap:12px;}
-  .skeleton-line{height:14px; border-radius:2px;}
-  .skeleton-line.titulo{height:26px; width:75%;}
-  .skeleton-line.corta{width:60%;}
-  @keyframes shimmer{0%{background-position:200% 0;} 100%{background-position:-200% 0;}}
-
-  #vacio, #error{
-    text-align:center; padding:80px 20px;
-    color:var(--ink-soft); font-size:15px; font-style:italic;
-  }
-  #error{color:var(--error);}
-
-  /* ---------- RESPONSIVE ---------- */
-  @media (max-width:640px){
-    header{flex-direction:column; align-items:flex-start; padding:36px 0 28px;}
-    .saludo{text-align:left;}
-    .brand img{width:52px;}
-    .login-box{padding:40px 28px;}
-    .login-logo{width:180px;}
-    .grid{grid-template-columns:1fr; gap:24px;}
-  }
-
-  /* Botones: sin doble toque en celulares */
-  button, a{touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
-  /* Efectos al pasar el mouse: solo en computadoras con mouse */
-  @media (hover:hover) and (pointer:fine){
-    .btn-login:hover{background:var(--rose-deep);}
-    .btn-salir:hover{border-bottom-color:var(--rose-deep);}
-    .curso:hover{transform:translateY(-4px); box-shadow:0 24px 48px -24px rgba(201,143,138,.28);}
-    .curso:hover::before{transform:scaleX(1);}
-    .btn-ver:hover{background:var(--ink); color:var(--white);}
-    .lista-pdf a:hover{border-color:var(--rose); background:var(--rose-soft);}
-    .btn-volver:hover{border-bottom-color:var(--rose-deep);}
-    .item-clase:not(.activa):hover{background:var(--paper);}
-    .video-tab:not(.activa):hover{border-color:var(--rose); background:var(--rose-soft);}
-    .btn-nav:hover{background:var(--rose-deep); border-color:var(--rose-deep); color:var(--white);}
-  }
-</style>
-</head>
-<body>
-
-<!-- ===================== LOGIN ===================== -->
-<div id="login-screen">
-  <div class="login-box">
-    <img class="login-logo" src="logo-completo.png" alt="Instituto Mariana Barrera">
-    <h1>Mariana Barrera</h1>
-    <div class="sub">Aula Virtual</div>
-    <input id="login-email" type="email" placeholder="Email" autocomplete="username" autocapitalize="off">
-    <input id="login-pass" type="password" placeholder="Contraseña" autocomplete="current-password">
-    <div class="login-error" id="login-error"></div>
-    <button class="btn-login" id="btn-login" onclick="doLogin()">Ingresar</button>
-  </div>
-</div>
-
-<!-- ===================== CLASSROOM ===================== -->
-<div id="app" style="display:none">
-  <header class="wrap">
-    <div class="brand">
-      <img src="logo-loto.png" alt="Instituto Mariana Barrera">
-      <div class="brand-text">
-        <div class="eyebrow">Aula Virtual</div>
-        <h1>Mariana Barrera</h1>
-        <div class="sub">Instituto de Estética &amp; Cosmiatría</div>
-      </div>
-    </div>
-    <div class="saludo">
-      <div>Bienvenida</div>
-      <strong id="saludo-nombre"></strong>
-      <button class="btn-salir" onclick="logout()">Cerrar sesión</button>
-    </div>
-  </header>
-
-  <main>
-    <div class="wrap">
-      <div id="vista-cursos">
-        <div id="estado" style="display:none;"></div>
-        <div id="grid" class="grid"></div>
-        <div id="vacio" style="display:none;">Todavía no tenés cursos habilitados. Consultá con el instituto.</div>
-        <div id="error" style="display:none;"></div>
-      </div>
-      <div id="vista-curso"></div>
-    </div>
-  </main>
-</div>
-
-<script>
-  // URL del Apps Script del CLASSROOM (no cambia: se publica como "nueva versión" de la misma implementación)
-  const API_URL = 'https://script.google.com/macros/s/AKfycbyNPTjRExPbY9QfSG_eyp2qndNdqYsmhJe64CzEOSnJPOUba6sGeJXsZEwW805z2F-j/exec';
-
-  const gridEl = document.getElementById('grid');
-  const estadoEl = document.getElementById('estado');
-  const vacioEl = document.getElementById('vacio');
-  const errorEl = document.getElementById('error');
-
-  // Borra la sesión de la versión anterior, que guardaba datos personales
-  sessionStorage.removeItem('alumno');
-
-  /* ---------- Helpers de seguridad ---------- */
-
-  // Escapa texto antes de meterlo en el HTML
-  function esc(v) {
-    return (v === undefined || v === null) ? '' :
-      String(v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
-  }
-
-  // Solo acepta links que empiecen con https:// (bloquea javascript: y similares)
-  function urlSegura(v) {
-    const s = String(v || '').trim();
-    return /^https:\/\//i.test(s) ? s : '';
-  }
-
-  // Solo acepta IDs de YouTube válidos (letras, números, - y _)
-  function idYoutubeSeguro(v) {
-    const s = String(v || '').trim();
-    return /^[A-Za-z0-9_-]{6,20}$/.test(s) ? s : '';
-  }
-
-  /* ---------- API ---------- */
-
-  async function api(action, payload) {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, ...payload })
+/** Ordena cursos según columna "Orden" (si existe) o por ID_Curso */
+function ordenarCursos(cursos) {
+  const tieneOrden = cursos.length > 0 && cursos[0].hasOwnProperty('Orden');
+  if (tieneOrden) {
+    return cursos.slice().sort((a, b) => {
+      const oa = Number(a.Orden); const ob = Number(b.Orden);
+      const na = isNaN(oa) ? 999999 : oa;
+      const nb = isNaN(ob) ? 999999 : ob;
+      return na - nb;
     });
-    return res.json();
   }
+  return cursos.slice().sort((a, b) =>
+    String(a.ID_Curso || '').localeCompare(String(b.ID_Curso || ''))
+  );
+}
 
-  /* ---------- Login / sesión ---------- */
+function respond(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
 
-  async function doLogin() {
-    const email = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-pass').value;
-    const errEl = document.getElementById('login-error');
-    errEl.textContent = '';
-    if (!email || !password) { errEl.textContent = 'Completá email y contraseña.'; return; }
-    const btn = document.getElementById('btn-login');
-    btn.disabled = true; btn.textContent = 'Ingresando…';
-    try {
-      const result = await api('loginAlumno', { email, password });
-      if (result.success && result.token) {
-        // Solo se guarda el token y el nombre para el saludo
-        sessionStorage.setItem('alumno_token', result.token);
-        sessionStorage.setItem('alumno_nombre', (result.alumno && result.alumno.Nombre) || '');
-        mostrarApp(result.cursos);
-      } else if (result.bloqueado) {
-        errEl.textContent = 'Demasiados intentos fallidos. Esperá 10 minutos y volvé a probar.';
-      } else {
-        errEl.textContent = 'Email o contraseña incorrectos.';
-      }
-    } catch (e) {
-      errEl.textContent = 'No se pudo conectar con el servidor.';
-    } finally {
-      btn.disabled = false; btn.textContent = 'Ingresar';
-    }
+/* ============================================================
+   CACHÉ EN TROZOS (cada valor de caché admite ~100 KB)
+   ============================================================ */
+
+const TAM_TROZO = 30000; // caracteres por trozo (margen para tildes y símbolos)
+
+function cachePutGrande(clave, texto, ttl) {
+  const n = Math.max(1, Math.ceil(texto.length / TAM_TROZO));
+  const trozos = {};
+  for (let i = 0; i < n; i++) trozos[clave + '_' + i] = texto.substr(i * TAM_TROZO, TAM_TROZO);
+  trozos[clave] = String(n);
+  CacheService.getScriptCache().putAll(trozos, ttl);
+}
+
+function cacheGetGrande(clave) {
+  const cache = CacheService.getScriptCache();
+  const n = Number(cache.get(clave));
+  if (!n) return null;
+  const claves = [];
+  for (let i = 0; i < n; i++) claves.push(clave + '_' + i);
+  const partes = cache.getAll(claves);
+  let texto = '';
+  for (let i = 0; i < claves.length; i++) {
+    const p = partes[claves[i]];
+    if (p === undefined || p === null) return null;
+    texto += p;
   }
+  return texto;
+}
 
-  // Ingresar apretando Enter
-  ['login-email', 'login-pass'].forEach(id => {
-    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+function cacheBorrarGrande(clave) {
+  const cache = CacheService.getScriptCache();
+  const n = Number(cache.get(clave)) || 0;
+  const claves = [clave];
+  for (let i = 0; i < n; i++) claves.push(clave + '_' + i);
+  cache.removeAll(claves);
+}
+
+/**
+ * Cursos + clases + contenidos ya armados y ordenados.
+ * Se guarda en caché para no leer 3 hojas en cada ingreso.
+ */
+function getContenido() {
+  try {
+    const t = cacheGetGrande(CACHE_KEY_CONTENIDO);
+    if (t) return JSON.parse(t);
+  } catch (e) { /* si el caché falla, se lee la planilla */ }
+
+  const porOrden = (a, b) => (Number(a.Orden) || 0) - (Number(b.Orden) || 0);
+
+  const cursos = ordenarCursos(sheetToObjects('Cursos')).map(c => ({
+    ID_Curso: String(c.ID_Curso),
+    Nombre: c.Nombre,
+    Descripcion_Programa: c.Descripcion_Programa,
+    Descripcion_Larga: c.Descripcion_Larga,
+    Imagen_URL: c.Imagen_URL,
+    Duracion: c.Duracion,
+    Precio_ARS: c.Precio_ARS,
+    Precio_USD: c.Precio_USD,
+    Fecha_Inicio_Publicacion: c.Fecha_Inicio_Publicacion,
+    Fecha_Fin_Publicacion: c.Fecha_Fin_Publicacion
+  }));
+
+  const matPorClase = {};
+  sheetToObjects('Materiales').forEach(m => {
+    const k = String(m.ID_Clase);
+    (matPorClase[k] = matPorClase[k] || []).push(m);
   });
 
-  function logout() {
-    sessionStorage.removeItem('alumno_token');
-    sessionStorage.removeItem('alumno_nombre');
-    location.reload();
-  }
-
-  function mostrarApp(cursosPrecargados) {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    document.getElementById('saludo-nombre').textContent = sessionStorage.getItem('alumno_nombre') || '';
-    // Si el login ya trajo los cursos, se muestran sin otra llamada al servidor
-    if (Array.isArray(cursosPrecargados)) renderCursos(cursosPrecargados);
-    else cargarCursos();
-  }
-
-  function mostrarSkeletons(cantidad) {
-    gridEl.innerHTML = '';
-    for (let i = 0; i < cantidad; i++) {
-      const sk = document.createElement('div');
-      sk.className = 'skeleton-card';
-      sk.innerHTML = `<div class="skeleton-img"></div>
-        <div class="skeleton-body">
-          <div class="skeleton-line titulo"></div>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line corta"></div>
-        </div>`;
-      gridEl.appendChild(sk);
-    }
-  }
-
-  function renderCursos(cursos) {
-    CURSOS = cursos;
-    gridEl.innerHTML = '';
-    estadoEl.style.display = 'none';
-    if (!cursos.length) { vacioEl.style.display = 'block'; return; }
-    cursos.forEach(curso => gridEl.appendChild(crearTarjeta(curso)));
-    aplicarRuta();
-  }
-
-  async function cargarCursos() {
-    mostrarSkeletons(3);
-    try {
-      const data = await api('getCursosAlumno', { token: sessionStorage.getItem('alumno_token') });
-
-      // Sesión vencida o inválida: volver al login
-      if (data.sesionInvalida) {
-        sessionStorage.removeItem('alumno_token');
-        sessionStorage.removeItem('alumno_nombre');
-        document.getElementById('app').style.display = 'none';
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('login-error').textContent = 'Tu sesión venció. Volvé a ingresar.';
-        return;
-      }
-      if (data.error) throw new Error(data.error);
-
-      renderCursos(data.cursos || []);
-    } catch (e) {
-      gridEl.innerHTML = '';
-      errorEl.style.display = 'block';
-      errorEl.textContent = 'No se pudieron cargar tus cursos. Intentá de nuevo más tarde.';
-    }
-  }
-
-  /* ---------- Grilla de cursos ---------- */
-
-  let CURSOS = [];
-
-  function contarContenidos(clases) {
-    let videos = 0, pdfs = 0;
-    (clases || []).forEach(c => (c.Contenidos || []).forEach(x => { if (x.Tipo === 'Video') videos++; else pdfs++; }));
-    return { videos, pdfs };
-  }
-
-  function crearTarjeta(curso) {
-    const card = document.createElement('div');
-    card.className = 'curso';
-    const img = urlSegura(curso.Imagen_URL);
-    const nClases = (curso.Clases || []).length;
-    card.innerHTML = `
-      ${img
-        ? `<img class="curso-img" src="${esc(img)}" alt="${esc(curso.Nombre)}" loading="lazy">`
-        : `<div class="curso-img"></div>`}
-      <div class="curso-body">
-        <div class="eyebrow">Curso</div>
-        <h3>${esc(curso.Nombre) || 'Curso sin nombre'}</h3>
-        <p class="desc">${esc(curso.Descripcion_Programa)}</p>
-        <div class="meta">
-          ${curso.Duracion ? `<span>${esc(curso.Duracion)}</span>` : ''}
-          ${nClases ? `<span>${nClases} ${nClases === 1 ? 'clase' : 'clases'}</span>` : ''}
-        </div>
-        <button class="btn-ver">Entrar al curso</button>
-      </div>`;
-    const abrir = () => abrirCurso(curso.ID_Curso);
-    card.querySelector('.btn-ver').addEventListener('click', abrir);
-    const imgEl = card.querySelector('.curso-img');
-    imgEl.style.cursor = 'pointer';
-    imgEl.addEventListener('click', abrir);
-    return card;
-  }
-
-  /* ---------- Navegación (el botón "atrás" del celular vuelve a Mis cursos) ---------- */
-
-  const vistaCursosEl = document.getElementById('vista-cursos');
-  const vistaCursoEl = document.getElementById('vista-curso');
-  let entroDesdeGrilla = false;
-
-  function abrirCurso(idCurso) {
-    entroDesdeGrilla = true;
-    location.hash = 'curso=' + encodeURIComponent(idCurso);
-  }
-
-  function volverACursos() {
-    if (entroDesdeGrilla) history.back();
-    else location.hash = '';
-  }
-
-  function aplicarRuta() {
-    const m = location.hash.match(/curso=([^&]+)/);
-    const curso = m ? CURSOS.find(c => String(c.ID_Curso) === decodeURIComponent(m[1])) : null;
-    if (curso) mostrarCurso(curso);
-    else mostrarGrilla();
-  }
-  window.addEventListener('hashchange', aplicarRuta);
-
-  function mostrarGrilla() {
-    vistaCursoEl.innerHTML = '';           // corta cualquier video que esté sonando
-    vistaCursoEl.style.display = 'none';
-    vistaCursosEl.style.display = 'block';
-    cursoActual = null;
-  }
-
-  /* ---------- Vista del curso ---------- */
-
-  let cursoActual = null;
-  let claseIdx = 0;
-  let videosClase = [];
-
-  // Recuerda la última clase vista de cada curso (solo en este navegador)
-  function leerUltimaClase(idCurso) {
-    try { return localStorage.getItem('aula_ultima_' + idCurso); } catch (e) { return null; }
-  }
-  function guardarUltimaClase(idCurso, idClase) {
-    try { localStorage.setItem('aula_ultima_' + idCurso, String(idClase)); } catch (e) {}
-  }
-
-  function numeroClase(clase, i) {
-    return String(clase.Orden || (i + 1)).padStart(2, '0');
-  }
-
-  function mostrarCurso(curso) {
-    cursoActual = curso;
-    const clases = curso.Clases || [];
-    vistaCursosEl.style.display = 'none';
-    vistaCursoEl.style.display = 'block';
-
-    vistaCursoEl.innerHTML = `
-      <div class="curso-top">
-        <div>
-          <button class="btn-volver" data-accion="volver">← Mis cursos</button>
-          <h2>${esc(curso.Nombre)}</h2>
-        </div>
-        ${clases.length ? `<div>
-          <div class="avance" id="avance"></div>
-          <div class="barra-avance"><span id="barra-avance"></span></div>
-        </div>` : ''}
-      </div>
-      ${curso.Descripcion_Larga ? `
-        <details class="sobre-curso">
-          <summary>Sobre este curso</summary>
-          <div class="desc-larga">${esc(curso.Descripcion_Larga)}</div>
-        </details>` : ''}
-      ${clases.length ? `
-        <div class="layout-curso">
-          <aside class="lista-clases">
-            <div class="titulo-lista">Clases del curso</div>
-            ${clases.map((c, i) => {
-              const n = contarContenidos([c]);
-              const partes = [];
-              if (n.videos) partes.push(n.videos + (n.videos === 1 ? ' video' : ' videos'));
-              if (n.pdfs) partes.push(n.pdfs + ' PDF');
-              return `<button class="item-clase" data-clase="${i}">
-                <span class="num">${esc(numeroClase(c, i))}</span>
-                <span class="txt"><strong>${esc(c.Titulo)}</strong><small>${partes.join(' · ') || 'Sin contenidos aún'}</small></span>
-              </button>`;
-            }).join('')}
-          </aside>
-          <section class="zona-clase" id="zona-clase"></section>
-        </div>`
-      : '<p class="sin-contenido">Todavía no hay clases cargadas para este curso.</p>'}
-    `;
-    window.scrollTo(0, 0);
-
-    if (clases.length) {
-      const ultima = leerUltimaClase(curso.ID_Curso);
-      const i = clases.findIndex(c => String(c.ID_Clase) === ultima);
-      seleccionarClase(i >= 0 ? i : 0, false);
-    }
-  }
-
-  function seleccionarClase(i, desplazar) {
-    const clases = cursoActual.Clases || [];
-    if (i < 0 || i >= clases.length) return;
-    claseIdx = i;
-    const clase = clases[i];
-    guardarUltimaClase(cursoActual.ID_Curso, clase.ID_Clase);
-
-    vistaCursoEl.querySelectorAll('.item-clase').forEach((el, j) => el.classList.toggle('activa', j === i));
-    document.getElementById('avance').textContent = `Clase ${i + 1} de ${clases.length}`;
-    document.getElementById('barra-avance').style.width = ((i + 1) / clases.length * 100) + '%';
-
-    const contenidos = clase.Contenidos || [];
-    videosClase = contenidos.filter(x => x.Tipo === 'Video' && idYoutubeSeguro(x.Link));
-    const pdfs = contenidos.filter(x => x.Tipo !== 'Video' && urlSegura(x.Link));
-    const esUltima = i === clases.length - 1;
-
-    const zona = document.getElementById('zona-clase');
-    zona.innerHTML = `
-      <div class="eyebrow-clase">Clase ${esc(numeroClase(clase, i))}</div>
-      <h3>${esc(clase.Titulo)}</h3>
-      ${videosClase.length ? `
-        <div class="reproductor" id="reproductor"></div>
-        ${videosClase.length > 1
-          ? `<div class="videos-tabs">${videosClase.map((v, j) =>
-              `<button class="video-tab" data-video="${j}">▶ ${esc(v.Nombre || 'Video ' + (j + 1))}</button>`).join('')}</div>`
-          : `<p class="nombre-video">▶ ${esc(videosClase[0].Nombre || 'Video')}</p>`}` : ''}
-      ${pdfs.length ? `
-        <div class="materiales">
-          <h4>Material de la clase</h4>
-          <div class="lista-pdf">${pdfs.map(p =>
-            `<a href="${esc(urlSegura(p.Link))}" target="_blank" rel="noopener">${esc(p.Nombre || 'Descargar PDF')}</a>`).join('')}</div>
-        </div>` : ''}
-      ${!videosClase.length && !pdfs.length ? '<p class="sin-contenido">Esta clase todavía no tiene contenidos.</p>' : ''}
-      <div class="nav-clases">
-        <button class="btn-nav" data-accion="anterior" ${i === 0 ? 'disabled' : ''}>← Anterior</button>
-        <button class="btn-nav primario" data-accion="siguiente" ${esUltima ? 'disabled' : ''}>Siguiente clase →</button>
-      </div>`;
-
-    if (videosClase.length) ponerVideo(0);
-    if (desplazar) zona.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function ponerVideo(j) {
-    const v = videosClase[j];
-    const rep = document.getElementById('reproductor');
-    if (!v || !rep) return;
-    const id = idYoutubeSeguro(v.Link);
-    rep.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1"
-      title="${esc(v.Nombre || 'Video')}" referrerpolicy="strict-origin-when-cross-origin"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-      allowfullscreen></iframe>`;
-    vistaCursoEl.querySelectorAll('.video-tab').forEach((el, k) => el.classList.toggle('activa', k === j));
-  }
-
-  // Un solo manejador para todos los botones de la vista del curso
-  vistaCursoEl.addEventListener('click', e => {
-    const el = e.target.closest('button');
-    if (!el) return;
-    if (el.dataset.clase !== undefined) seleccionarClase(Number(el.dataset.clase), true);
-    else if (el.dataset.video !== undefined) ponerVideo(Number(el.dataset.video));
-    else if (el.dataset.accion === 'volver') volverACursos();
-    else if (el.dataset.accion === 'anterior') seleccionarClase(claseIdx - 1, true);
-    else if (el.dataset.accion === 'siguiente') seleccionarClase(claseIdx + 1, true);
+  const clasesPorCurso = {};
+  sheetToObjects('Clases').forEach(cl => {
+    const k = String(cl.ID_Curso);
+    (clasesPorCurso[k] = clasesPorCurso[k] || []).push(cl);
   });
 
-  // Si ya había una sesión activa, entra directo (el servidor valida el token)
-  if (sessionStorage.getItem('alumno_token')) { mostrarApp(); }
-</script>
+  const clasesArmadas = {};
+  Object.keys(clasesPorCurso).forEach(k => {
+    clasesArmadas[k] = clasesPorCurso[k].sort(porOrden).map(cl => ({
+      ID_Clase: cl.ID_Clase,
+      Orden: cl.Orden,
+      Titulo: cl.Titulo,
+      Contenidos: (matPorClase[String(cl.ID_Clase)] || []).sort(porOrden)
+        .map(m => ({ Tipo: m.Tipo, Nombre: m.Nombre, Link: m.Link, Orden: m.Orden }))
+    }));
+  });
 
-</body>
-</html>
+  const contenido = { cursos: cursos, clasesPorCurso: clasesArmadas };
+  try {
+    cachePutGrande(CACHE_KEY_CONTENIDO, JSON.stringify(contenido), CACHE_TTL_SECONDS);
+  } catch (e) {
+    console.warn('No se pudo cachear el contenido: ' + e.message);
+  }
+  return contenido;
+}
+
+function limpiarTodoElCache() {
+  CacheService.getScriptCache().remove(CACHE_KEY_CATALOGO);
+  cacheBorrarGrande(CACHE_KEY_CONTENIDO);
+}
+
+/* ============================================================
+   SEGURIDAD: tokens firmados + límite de intentos
+   ============================================================ */
+
+/** Clave secreta para firmar tokens. Se crea sola la primera vez. */
+function getSecreto() {
+  const props = PropertiesService.getScriptProperties();
+  let secreto = props.getProperty('SECRETO_TOKEN');
+  if (secreto) return secreto;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    secreto = props.getProperty('SECRETO_TOKEN');
+    if (!secreto) {
+      secreto = Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid();
+      props.setProperty('SECRETO_TOKEN', secreto);
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  return secreto;
+}
+
+function firmar(texto) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(texto, getSecreto()));
+}
+
+function igualesSeguro(a, b) {
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
+function crearToken(datos, duracionSeg) {
+  const payload = Object.assign({}, datos, { exp: Date.now() + duracionSeg * 1000 });
+  const p = Utilities.base64EncodeWebSafe(JSON.stringify(payload), Utilities.Charset.UTF_8);
+  return p + '.' + firmar(p);
+}
+
+/** Devuelve los datos del token si es válido y no venció; si no, null. */
+function leerToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const partes = token.split('.');
+  if (partes.length !== 2) return null;
+  if (!igualesSeguro(firmar(partes[0]), partes[1])) return null;
+  try {
+    const bytes = Utilities.base64DecodeWebSafe(partes[0]);
+    const payload = JSON.parse(Utilities.newBlob(bytes).getDataAsString('UTF-8'));
+    if (!payload.exp || Date.now() > payload.exp) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+function loginBloqueado(clave) {
+  return Number(CacheService.getScriptCache().get('fallos_' + clave) || 0) >= MAX_INTENTOS_LOGIN;
+}
+function registrarFallo(clave) {
+  const cache = CacheService.getScriptCache();
+  const n = Number(cache.get('fallos_' + clave) || 0) + 1;
+  cache.put('fallos_' + clave, String(n), BLOQUEO_LOGIN_SEG);
+}
+function limpiarFallos(clave) {
+  CacheService.getScriptCache().remove('fallos_' + clave);
+}
+
+function loginAlumno(emailIngresado, passwordIngresada) {
+  const email = String(emailIngresado || '').trim().toLowerCase();
+  const password = String(passwordIngresada || '').trim();
+  const clave = 'alumno_' + email.slice(0, 100);
+
+  if (loginBloqueado(clave)) return { success: false, bloqueado: true };
+
+  const alumno = sheetToObjects('Alumnos').find(a =>
+    String(a.Email || '').trim().toLowerCase() === email &&
+    String(a.Password || '').trim() === password
+  );
+  if (!email || !password || !alumno) {
+    registrarFallo(clave);
+    return { success: false };
+  }
+
+  limpiarFallos(clave);
+  const idAlumno = String(alumno.ID_Alumno);
+
+  // Se devuelven los cursos en la misma respuesta: el alumno entra con UNA sola llamada
+  let cursos = null;
+  try { cursos = getCursosAlumno(idAlumno).cursos; } catch (e) { cursos = null; }
+
+  return {
+    success: true,
+    token: crearToken({ t: 'alumno', id: idAlumno }, DURACION_SESION_SEG),
+    alumno: { Nombre: alumno.Nombre },
+    cursos: cursos
+  };
+}
+
+/* ============================================================
+   CATÁLOGO
+   ============================================================ */
+
+/** Un curso está publicado si hoy cae dentro de sus fechas de publicación. */
+function estaPublicado(c, hoy) {
+  if (c.Fecha_Inicio_Publicacion) {
+    const fi = new Date(c.Fecha_Inicio_Publicacion);
+    if (!isNaN(fi) && fi > hoy) return false;
+  }
+  if (c.Fecha_Fin_Publicacion) {
+    const ff = new Date(c.Fecha_Fin_Publicacion);
+    if (!isNaN(ff) && ff < hoy) return false;
+  }
+  return true;
+}
+
+/** Catálogo público liviano (sin Descripcion_Larga), con caché. */
+function getCatalogoPublico() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(CACHE_KEY_CATALOGO);
+  if (cached) return JSON.parse(cached);
+
+  const hoy = new Date();
+  const catalogo = getContenido().cursos.filter(c => estaPublicado(c, hoy)).map(c => ({
+    ID_Curso: c.ID_Curso,
+    Nombre: c.Nombre,
+    Descripcion_Programa: c.Descripcion_Programa,
+    Imagen_URL: c.Imagen_URL,
+    Duracion: c.Duracion,
+    Precio_ARS: c.Precio_ARS,
+    Precio_USD: c.Precio_USD
+  }));
+
+  try {
+    cache.put(CACHE_KEY_CATALOGO, JSON.stringify(catalogo), CACHE_TTL_SECONDS);
+  } catch (e) {
+    console.warn('No se pudo cachear el catálogo: ' + e.message);
+  }
+  return catalogo;
+}
+
+/** Descripcion_Larga de un curso PUBLICADO. Se pide desde "Ver más". */
+function getCursoDetalle(idCurso) {
+  const curso = getContenido().cursos.find(c => String(c.ID_Curso) === String(idCurso));
+  if (!curso || !estaPublicado(curso, new Date())) return { error: 'Curso no encontrado' };
+  return { Descripcion_Larga: curso.Descripcion_Larga || '' };
+}
+
+/* ============================================================
+   CLASSROOM DEL ALUMNO
+   ============================================================ */
+
+function getCursosAlumno(idAlumnoDelToken) {
+  const idAlumno = String(idAlumnoDelToken).trim();
+
+  // Las inscripciones se leen siempre en vivo (así habilitar/deshabilitar es inmediato)
+  const idsHabilitados = {};
+  sheetToObjects('Inscripciones').forEach(i => {
+    if (String(i.ID_Alumno).trim() !== idAlumno) return;
+    if (String(i.Habilitado || '').trim().toLowerCase() !== 'si') return;
+    idsHabilitados[String(i.ID_Curso).trim()] = true;
+  });
+
+  const contenido = getContenido();
+  const cursos = contenido.cursos
+    .filter(c => idsHabilitados[String(c.ID_Curso).trim()])
+    .map(c => ({
+      ID_Curso: c.ID_Curso,
+      Nombre: c.Nombre,
+      Descripcion_Programa: c.Descripcion_Programa,
+      Descripcion_Larga: c.Descripcion_Larga,
+      Imagen_URL: c.Imagen_URL,
+      Duracion: c.Duracion,
+      Clases: contenido.clasesPorCurso[String(c.ID_Curso)] || []
+    }));
+
+  return { cursos: cursos };
+}
+
+/* ============================================================
+   doGet / doPost
+   ============================================================ */
+
+function doGet(e) {
+  try {
+    const action = e && e.parameter && e.parameter.action;
+
+    if (action === 'catalogo') {
+      return respond({ cursos: getCatalogoPublico() });
+    }
+
+    if (action === 'detalle') {
+      return respond(getCursoDetalle(e.parameter.id || ''));
+    }
+
+    if (action === 'limpiarCache') {
+      if (!igualesSeguro(e.parameter.key || '', CLAVE_LIMPIEZA)) {
+        return respond({ ok: false, error: 'No autorizado' });
+      }
+      limpiarTodoElCache();
+      return respond({ ok: true, mensaje: 'Caché limpiado.' });
+    }
+
+    return respond({ ok: true, mensaje: 'API del classroom Academia Virtual activa' });
+  } catch (err) {
+    return respond({ error: err.message });
+  }
+}
+
+function doPost(e) {
+  let body;
+  try { body = JSON.parse(e.postData.contents); }
+  catch (err) { return respond({ error: 'Cuerpo de la petición inválido' }); }
+
+  try {
+    switch (body.action) {
+
+      case 'loginAlumno':
+        return respond(loginAlumno(body.email, body.password));
+
+      case 'getCursosAlumno': {
+        // El alumno sale del token firmado, NUNCA de un dato enviado por el navegador
+        const sesion = leerToken(body.token);
+        if (!sesion || sesion.t !== 'alumno') {
+          return respond({ sesionInvalida: true, error: 'Tu sesión venció. Volvé a ingresar.' });
+        }
+        return respond(getCursosAlumno(sesion.id));
+      }
+
+      default:
+        return respond({ error: 'Acción no reconocida: ' + body.action });
+    }
+  } catch (err) {
+    return respond({ error: err.message });
+  }
+}
