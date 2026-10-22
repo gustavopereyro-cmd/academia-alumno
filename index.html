@@ -1,346 +1,442 @@
-/**
- * ============================================================
- *  CLASSROOM DEL ALUMNO + CATÁLOGO PÚBLICO - ACADEMIA VIRTUAL
- *  Backend (Google Apps Script) — Versión con sesiones por token
- * ============================================================
- *  ACCIONES DISPONIBLES:
- *   - loginAlumno          → login de alumnos (devuelve un token)
- *   - getCursosAlumno      → cursos + clases + materiales del alumno
- *                            (requiere token; el alumno sale del token)
- *   - GET ?action=catalogo → catálogo público liviano (sin login)
- *   - GET ?action=detalle  → Descripcion_Larga de un curso publicado
- *   - GET ?action=limpiarCache&key=... → limpia el caché (requiere clave)
- *
- *  INSTRUCCIONES:
- *   1. Reemplazá TODO el código del proyecto por este archivo.
- *   2. Implementar → Gestionar implementaciones → ✏️
- *      → Versión: NUEVA VERSIÓN → Implementar.
- * ============================================================
- */
-
-const SHEET_ID = '1S3eWZIwIbpdIJv35GPd3JI_Mp3v5fy0MTCG13YQzEYw';
-
-// Duración del caché del catálogo en segundos (600 = 10 minutos)
-const CACHE_TTL_SECONDS = 600;
-const CACHE_KEY_CATALOGO = 'catalogo_publico_v1';
-
-// ---- Seguridad ----
-const DURACION_SESION_SEG = 12 * 60 * 60;  // la sesión del alumno dura 12 horas
-const MAX_INTENTOS_LOGIN = 5;              // intentos fallidos permitidos
-const BLOQUEO_LOGIN_SEG = 10 * 60;         // tiempo de bloqueo: 10 minutos
-
-function getSS() { return SpreadsheetApp.openById(SHEET_ID); }
-
-function getSheetByName(name) {
-  const sheet = getSS().getSheetByName(name);
-  if (!sheet) throw new Error('No se encontró la hoja "' + name + '"');
-  return sheet;
-}
-
-/**
- * Convierte una hoja en un array de objetos, optimizado:
- * lee el rango UNA sola vez y arma los objetos en memoria.
- */
-function sheetToObjects(sheetName) {
-  const sheet = getSheetByName(sheetName);
-  const lastRow = sheet.getLastRow();
-  const lastCol = sheet.getLastColumn();
-  if (lastRow < 2) return [];
-  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-  const items = [];
-  for (let i = 0; i < data.length; i++) {
-    const row = data[i];
-    let isEmpty = true;
-    for (let j = 0; j < row.length; j++) {
-      if (row[j] !== '' && row[j] !== null) { isEmpty = false; break; }
-    }
-    if (isEmpty) continue;
-    const obj = {};
-    for (let k = 0; k < headers.length; k++) { obj[headers[k]] = row[k]; }
-    items.push(obj);
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instituto Mariana Barrera · Aula Virtual</title>
+<link rel="icon" href="logo-loto.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --rose:#E8B4B0;
+    --rose-soft:#F5D5D0;
+    --rose-deep:#C98F8A;
+    --cream:#FDFBF9;
+    --paper:#F7F2EE;
+    --ink:#4A4444;
+    --ink-soft:#8A8280;
+    --line:#EDE4DE;
+    --white:#FFFFFF;
+    --error:#C97B74;
   }
-  return items;
-}
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--cream); color:var(--ink);
+    font-family:'Jost', sans-serif;
+    font-weight:300;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{font-family:'Cormorant Garamond', serif; font-weight:500; letter-spacing:.005em;}
+  .wrap{max-width:1120px; margin:0 auto; padding:0 28px;}
 
-/** Ordena cursos según columna "Orden" (si existe) o por ID_Curso */
-function ordenarCursos(cursos) {
-  const tieneOrden = cursos.length > 0 && cursos[0].hasOwnProperty('Orden');
-  if (tieneOrden) {
-    return cursos.slice().sort((a, b) => {
-      const oa = Number(a.Orden); const ob = Number(b.Orden);
-      const na = isNaN(oa) ? 999999 : oa;
-      const nb = isNaN(ob) ? 999999 : ob;
-      return na - nb;
+  /* ---------- LOGIN ---------- */
+  #login-screen{
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg, #FDFBF9 0%, #F5D5D0 100%);
+    z-index:100; padding:20px;
+  }
+  .login-box{
+    background:var(--white);
+    padding:56px 48px;
+    border-radius:2px;
+    width:100%; max-width:420px;
+    box-shadow:0 30px 60px -20px rgba(201,143,138,.25);
+    border-top:3px solid var(--rose);
+    text-align:center;
+  }
+  .login-logo{
+    width:220px; max-width:100%;
+    margin:0 auto 26px; display:block;
+  }
+  .login-box h1{font-size:30px; color:var(--ink); margin-bottom:4px; font-weight:600;}
+  .login-box .sub{
+    color:var(--ink-soft); font-size:11.5px;
+    text-transform:uppercase; letter-spacing:.28em;
+    margin-bottom:32px; font-weight:400;
+  }
+  .login-box input{
+    width:100%; padding:14px 16px; margin-bottom:14px;
+    font-family:'Jost',sans-serif; font-size:15px; font-weight:300;
+    border:1px solid var(--line); border-radius:2px;
+    background:var(--cream); color:var(--ink);
+    transition:border-color .2s, background .2s;
+  }
+  .login-box input:focus{
+    outline:none; border-color:var(--rose); background:var(--white);
+  }
+  .login-error{color:var(--error); font-size:13px; min-height:20px; margin-bottom:8px;}
+  .btn-login{
+    width:100%;
+    font-family:'Jost',sans-serif; font-size:13px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.22em;
+    background:var(--ink); color:var(--white);
+    border:none; padding:15px; border-radius:2px;
+    cursor:pointer; transition:all .3s ease;
+  }
+  .btn-login:hover{background:var(--rose-deep); letter-spacing:.28em;}
+
+  /* ---------- HEADER ---------- */
+  header{
+    padding:48px 0 36px;
+    border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; gap:24px;
+    flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:center; gap:20px;}
+  .brand img{width:64px; height:auto;}
+  .brand-text h1{font-size:clamp(24px,3vw,32px); line-height:1; color:var(--ink);}
+  .brand-text .eyebrow{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.32em;
+    color:var(--rose-deep); margin-bottom:6px; font-weight:500;
+  }
+  .brand-text .sub{font-size:12.5px; color:var(--ink-soft); margin-top:4px; font-style:italic;}
+  .saludo{text-align:right; font-size:14px; color:var(--ink-soft);}
+  .saludo strong{color:var(--ink); font-weight:500; font-family:'Cormorant Garamond',serif; font-size:18px; display:block;}
+  .btn-salir{
+    background:none; border:none; color:var(--rose-deep);
+    font-family:'Jost',sans-serif; font-size:11px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.2em; cursor:pointer;
+    margin-top:6px; padding:4px 0; border-bottom:1px solid transparent;
+    transition:border-color .2s;
+  }
+  .btn-salir:hover{border-bottom-color:var(--rose-deep);}
+
+  /* ---------- MAIN ---------- */
+  main{padding:48px 0 100px;}
+  #estado{color:var(--ink-soft); font-size:14px; margin-bottom:28px; font-style:italic;}
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr));
+    gap:32px;
+  }
+
+  /* ---------- CARD CURSO ---------- */
+  .curso{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:2px;
+    overflow:hidden;
+    display:flex; flex-direction:column;
+    transition:transform .4s ease, box-shadow .4s ease;
+    position:relative;
+  }
+  .curso::before{
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg, var(--rose-soft), var(--rose), var(--rose-soft));
+    transform:scaleX(0); transform-origin:left;
+    transition:transform .5s ease;
+  }
+  .curso:hover{transform:translateY(-4px); box-shadow:0 24px 48px -24px rgba(201,143,138,.28);}
+  .curso:hover::before{transform:scaleX(1);}
+  .curso-img{
+    width:100%; aspect-ratio:16/10; object-fit:cover;
+    background:var(--paper); display:block;
+  }
+  .curso-body{padding:26px 24px 22px; display:flex; flex-direction:column; gap:12px; flex:1;}
+  .curso-body .eyebrow{
+    font-size:10px; text-transform:uppercase; letter-spacing:.3em;
+    color:var(--rose-deep); font-weight:500;
+  }
+  .curso-body h3{font-size:26px; line-height:1.15; color:var(--ink);}
+  .curso-body p.desc{font-size:14px; color:var(--ink-soft); flex:1; line-height:1.7;}
+  .meta{
+    display:flex; flex-wrap:wrap; gap:8px;
+    font-size:11px; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:.12em;
+  }
+  .meta span{
+    border:1px solid var(--line); border-radius:2px;
+    padding:5px 11px; font-weight:400;
+  }
+  .btn-ver{
+    margin-top:10px; align-self:flex-start;
+    font-family:'Jost',sans-serif; font-size:11.5px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.22em;
+    background:transparent; color:var(--ink);
+    border:1px solid var(--ink);
+    padding:12px 22px; border-radius:2px; cursor:pointer;
+    transition:all .3s ease;
+  }
+  .btn-ver:hover{background:var(--ink); color:var(--white); letter-spacing:.28em;}
+  .btn-ver.abierto{background:var(--rose-deep); color:var(--white); border-color:var(--rose-deep);}
+
+  /* ---------- DETALLE ---------- */
+  .detalle{
+    display:none;
+    border-top:1px solid var(--line);
+    padding:28px 24px;
+    background:linear-gradient(180deg, var(--paper) 0%, var(--white) 100%);
+  }
+  .detalle.abierto{display:block; animation:fade .5s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);}}
+
+  .detalle .desc-larga{
+    font-size:14.5px; color:var(--ink-soft); line-height:1.8;
+    margin-bottom:28px; white-space:pre-line;
+    padding-left:16px; border-left:2px solid var(--rose-soft);
+  }
+
+  .clase{margin-bottom:32px; padding-bottom:28px; border-bottom:1px dashed var(--line);}
+  .clase:last-child{margin-bottom:0; padding-bottom:0; border-bottom:none;}
+  .clase h4{
+    font-size:19px; color:var(--ink); margin-bottom:14px;
+    display:flex; align-items:baseline; gap:12px;
+  }
+  .clase h4 .orden{
+    font-family:'Jost',sans-serif; font-size:11px; font-weight:500;
+    color:var(--rose-deep); letter-spacing:.2em;
+    padding-bottom:2px;
+  }
+  .clase iframe{
+    width:100%; aspect-ratio:16/9; border:none;
+    border-radius:2px; margin-bottom:14px; display:block;
+    box-shadow:0 8px 24px -12px rgba(201,143,138,.3);
+  }
+  .lista-pdf a{
+    display:flex; align-items:center; gap:10px;
+    font-size:14px; color:var(--ink); text-decoration:none;
+    padding:13px 16px; border:1px solid var(--line); border-radius:2px;
+    background:var(--white); margin-bottom:8px;
+    transition:all .25s ease;
+  }
+  .lista-pdf a::before{
+    content:'↓'; font-size:14px; color:var(--rose-deep);
+    font-weight:500;
+  }
+  .lista-pdf a:hover{border-color:var(--rose); background:var(--rose-soft);}
+
+  #vacio, #error{
+    text-align:center; padding:80px 20px;
+    color:var(--ink-soft); font-size:15px; font-style:italic;
+  }
+  #error{color:var(--error);}
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width:640px){
+    header{flex-direction:column; align-items:flex-start; padding:36px 0 28px;}
+    .saludo{text-align:left;}
+    .brand img{width:52px;}
+    .login-box{padding:40px 28px;}
+    .login-logo{width:180px;}
+    .grid{grid-template-columns:1fr; gap:24px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login-screen">
+  <div class="login-box">
+    <img class="login-logo" src="logo-completo.png" alt="Instituto Mariana Barrera">
+    <h1>Mariana Barrera</h1>
+    <div class="sub">Aula Virtual</div>
+    <input id="login-email" type="text" placeholder="Email" autocomplete="username">
+    <input id="login-pass" type="password" placeholder="Contraseña" autocomplete="current-password">
+    <div class="login-error" id="login-error"></div>
+    <button class="btn-login" onclick="doLogin()">Ingresar</button>
+  </div>
+</div>
+
+<!-- ===================== CLASSROOM ===================== -->
+<div id="app" style="display:none">
+  <header class="wrap">
+    <div class="brand">
+      <img src="logo-loto.png" alt="Instituto Mariana Barrera">
+      <div class="brand-text">
+        <div class="eyebrow">Aula Virtual</div>
+        <h1>Mariana Barrera</h1>
+        <div class="sub">Instituto de Estética &amp; Cosmatría</div>
+      </div>
+    </div>
+    <div class="saludo">
+      <div>Bienvenida</div>
+      <strong id="saludo-nombre"></strong>
+      <button class="btn-salir" onclick="logout()">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div id="estado">Cargando tus cursos…</div>
+      <div id="grid" class="grid"></div>
+      <div id="vacio" style="display:none;">Todavía no tenés cursos habilitados. Consultá con el instituto.</div>
+      <div id="error" style="display:none;"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // URL del Apps Script del CLASSROOM (no cambia: se publica como "nueva versión" de la misma implementación)
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyNPTjRExPbY9QfSG_eyp2qndNdqYsmhJe64CzEOSnJPOUba6sGeJXsZEwW805z2F-j/exec';
+
+  const gridEl = document.getElementById('grid');
+  const estadoEl = document.getElementById('estado');
+  const vacioEl = document.getElementById('vacio');
+  const errorEl = document.getElementById('error');
+
+  // Borra la sesión de la versión anterior, que guardaba datos personales
+  sessionStorage.removeItem('alumno');
+
+  /* ---------- Helpers de seguridad ---------- */
+
+  // Escapa texto antes de meterlo en el HTML
+  function esc(v) {
+    return (v === undefined || v === null) ? '' :
+      String(v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+
+  // Solo acepta links que empiecen con https:// (bloquea javascript: y similares)
+  function urlSegura(v) {
+    const s = String(v || '').trim();
+    return /^https:\/\//i.test(s) ? s : '';
+  }
+
+  // Solo acepta IDs de YouTube válidos (letras, números, - y _)
+  function idYoutubeSeguro(v) {
+    const s = String(v || '').trim();
+    return /^[A-Za-z0-9_-]{6,20}$/.test(s) ? s : '';
+  }
+
+  /* ---------- API ---------- */
+
+  async function api(action, payload) {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, ...payload })
     });
-  }
-  return cursos.slice().sort((a, b) =>
-    String(a.ID_Curso || '').localeCompare(String(b.ID_Curso || ''))
-  );
-}
-
-function respond(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-/* ============================================================
-   SEGURIDAD: tokens firmados + límite de intentos
-   ============================================================ */
-
-/** Clave secreta para firmar tokens. Se crea sola la primera vez. */
-function getSecreto() {
-  const props = PropertiesService.getScriptProperties();
-  let secreto = props.getProperty('SECRETO_TOKEN');
-  if (secreto) return secreto;
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    secreto = props.getProperty('SECRETO_TOKEN');
-    if (!secreto) {
-      secreto = Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid();
-      props.setProperty('SECRETO_TOKEN', secreto);
-    }
-  } finally {
-    lock.releaseLock();
-  }
-  return secreto;
-}
-
-function firmar(texto) {
-  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(texto, getSecreto()));
-}
-
-function igualesSeguro(a, b) {
-  a = String(a); b = String(b);
-  if (a.length !== b.length) return false;
-  let r = 0;
-  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return r === 0;
-}
-
-function crearToken(datos, duracionSeg) {
-  const payload = Object.assign({}, datos, { exp: Date.now() + duracionSeg * 1000 });
-  const p = Utilities.base64EncodeWebSafe(JSON.stringify(payload), Utilities.Charset.UTF_8);
-  return p + '.' + firmar(p);
-}
-
-/** Devuelve los datos del token si es válido y no venció; si no, null. */
-function leerToken(token) {
-  if (!token || typeof token !== 'string') return null;
-  const partes = token.split('.');
-  if (partes.length !== 2) return null;
-  if (!igualesSeguro(firmar(partes[0]), partes[1])) return null;
-  try {
-    const bytes = Utilities.base64DecodeWebSafe(partes[0]);
-    const payload = JSON.parse(Utilities.newBlob(bytes).getDataAsString('UTF-8'));
-    if (!payload.exp || Date.now() > payload.exp) return null;
-    return payload;
-  } catch (e) {
-    return null;
-  }
-}
-
-function loginBloqueado(clave) {
-  return Number(CacheService.getScriptCache().get('fallos_' + clave) || 0) >= MAX_INTENTOS_LOGIN;
-}
-function registrarFallo(clave) {
-  const cache = CacheService.getScriptCache();
-  const n = Number(cache.get('fallos_' + clave) || 0) + 1;
-  cache.put('fallos_' + clave, String(n), BLOQUEO_LOGIN_SEG);
-}
-function limpiarFallos(clave) {
-  CacheService.getScriptCache().remove('fallos_' + clave);
-}
-
-function loginAlumno(emailIngresado, passwordIngresada) {
-  const email = String(emailIngresado || '').trim().toLowerCase();
-  const password = String(passwordIngresada || '').trim();
-  const clave = 'alumno_' + email.slice(0, 100);
-
-  if (loginBloqueado(clave)) return { success: false, bloqueado: true };
-
-  const alumno = sheetToObjects('Alumnos').find(a =>
-    String(a.Email || '').trim().toLowerCase() === email &&
-    String(a.Password || '').trim() === password
-  );
-  if (!email || !password || !alumno) {
-    registrarFallo(clave);
-    return { success: false };
+    return res.json();
   }
 
-  limpiarFallos(clave);
-  return {
-    success: true,
-    token: crearToken({ t: 'alumno', id: String(alumno.ID_Alumno) }, DURACION_SESION_SEG),
-    // Al navegador solo viaja lo necesario para el saludo
-    alumno: { Nombre: alumno.Nombre }
-  };
-}
+  /* ---------- Login / sesión ---------- */
 
-/* ============================================================
-   CATÁLOGO
-   ============================================================ */
-
-/** Un curso está publicado si hoy cae dentro de sus fechas de publicación. */
-function estaPublicado(c, hoy) {
-  if (c.Fecha_Inicio_Publicacion) {
-    const fi = new Date(c.Fecha_Inicio_Publicacion);
-    if (!isNaN(fi) && fi > hoy) return false;
-  }
-  if (c.Fecha_Fin_Publicacion) {
-    const ff = new Date(c.Fecha_Fin_Publicacion);
-    if (!isNaN(ff) && ff < hoy) return false;
-  }
-  return true;
-}
-
-/** Invalida el caché del catálogo. */
-function invalidarCacheCatalogo() {
-  CacheService.getScriptCache().remove(CACHE_KEY_CATALOGO);
-}
-
-/**
- * Devuelve el catálogo público (versión LIVIANA, sin Descripcion_Larga).
- * Usa caché de Apps Script por CACHE_TTL_SECONDS segundos.
- */
-function getCatalogoPublico() {
-  const cache = CacheService.getScriptCache();
-
-  const cached = cache.get(CACHE_KEY_CATALOGO);
-  if (cached) return JSON.parse(cached);
-
-  const hoy = new Date();
-  const cursos = ordenarCursos(sheetToObjects('Cursos'));
-
-  const catalogo = cursos.filter(c => estaPublicado(c, hoy)).map(c => ({
-    ID_Curso: c.ID_Curso,
-    Nombre: c.Nombre,
-    Descripcion_Programa: c.Descripcion_Programa,
-    Imagen_URL: c.Imagen_URL,
-    Duracion: c.Duracion,
-    Precio_ARS: c.Precio_ARS,
-    Precio_USD: c.Precio_USD,
-    Puntaje_Minimo_Aprobacion: c.Puntaje_Minimo_Aprobacion
-  }));
-
-  try {
-    cache.put(CACHE_KEY_CATALOGO, JSON.stringify(catalogo), CACHE_TTL_SECONDS);
-  } catch (e) {
-    console.warn('No se pudo cachear el catálogo: ' + e.message);
-  }
-
-  return catalogo;
-}
-
-/** Devuelve la Descripcion_Larga de un curso PUBLICADO. Se pide desde "Ver más". */
-function getCursoDetalle(idCurso) {
-  const curso = sheetToObjects('Cursos').find(c => String(c.ID_Curso) === String(idCurso));
-  if (!curso || !estaPublicado(curso, new Date())) return { error: 'Curso no encontrado' };
-  return { Descripcion_Larga: curso.Descripcion_Larga || '' };
-}
-
-/* ============================================================
-   CLASSROOM DEL ALUMNO
-   ============================================================ */
-
-function getCursosAlumno(idAlumnoDelToken) {
-  const idAlumno = String(idAlumnoDelToken);
-  const inscripciones = sheetToObjects('Inscripciones').filter(i =>
-    String(i.ID_Alumno) === idAlumno &&
-    String(i.Habilitado || '').trim().toLowerCase() === 'si'
-  );
-  const idsCursosHabilitados = inscripciones.map(i => String(i.ID_Curso));
-
-  const cursos = ordenarCursos(
-    sheetToObjects('Cursos').filter(c => idsCursosHabilitados.includes(String(c.ID_Curso)))
-  );
-  const clases = sheetToObjects('Clases');
-  const materiales = sheetToObjects('Materiales');
-
-  const cursosCompletos = cursos.map(curso => {
-    const clasesDelCurso = clases
-      .filter(cl => String(cl.ID_Curso) === String(curso.ID_Curso))
-      .sort((a, b) => (Number(a.Orden) || 0) - (Number(b.Orden) || 0))
-      .map(cl => {
-        const contenidos = materiales
-          .filter(m => String(m.ID_Clase) === String(cl.ID_Clase))
-          .sort((a, b) => (Number(a.Orden) || 0) - (Number(b.Orden) || 0))
-          .map(m => ({ Tipo: m.Tipo, Nombre: m.Nombre, Link: m.Link, Orden: m.Orden }));
-        return { ID_Clase: cl.ID_Clase, Orden: cl.Orden, Titulo: cl.Titulo, Contenidos: contenidos };
-      });
-    // Solo los datos que el aula necesita (no se filtra el resto de las columnas)
-    return {
-      ID_Curso: curso.ID_Curso,
-      Nombre: curso.Nombre,
-      Descripcion_Programa: curso.Descripcion_Programa,
-      Descripcion_Larga: curso.Descripcion_Larga,
-      Imagen_URL: curso.Imagen_URL,
-      Duracion: curso.Duracion,
-      Puntaje_Minimo_Aprobacion: curso.Puntaje_Minimo_Aprobacion,
-      Clases: clasesDelCurso
-    };
-  });
-
-  return { cursos: cursosCompletos };
-}
-
-/* ============================================================
-   doGet / doPost
-   ============================================================ */
-
-function doGet(e) {
-  try {
-    const action = e && e.parameter && e.parameter.action;
-
-    if (action === 'catalogo') {
-      return respond({ cursos: getCatalogoPublico() });
-    }
-
-    if (action === 'detalle') {
-      return respond(getCursoDetalle(e.parameter.id || ''));
-    }
-
-    if (action === 'limpiarCache') {
-      // Solo funciona si se configuró la propiedad CLAVE_LIMPIEZA y la clave coincide
-      const clave = PropertiesService.getScriptProperties().getProperty('CLAVE_LIMPIEZA');
-      if (!clave || !igualesSeguro(e.parameter.key || '', clave)) {
-        return respond({ ok: false, error: 'No autorizado' });
+  async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-pass').value;
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = '';
+    if (!email || !password) { errEl.textContent = 'Completá email y contraseña.'; return; }
+    try {
+      const result = await api('loginAlumno', { email, password });
+      if (result.success && result.token) {
+        // Solo se guarda el token y el nombre para el saludo
+        sessionStorage.setItem('alumno_token', result.token);
+        sessionStorage.setItem('alumno_nombre', (result.alumno && result.alumno.Nombre) || '');
+        mostrarApp();
+      } else if (result.bloqueado) {
+        errEl.textContent = 'Demasiados intentos fallidos. Esperá 10 minutos y volvé a probar.';
+      } else {
+        errEl.textContent = 'Email o contraseña incorrectos.';
       }
-      invalidarCacheCatalogo();
-      return respond({ ok: true, mensaje: 'Caché del catálogo limpiado.' });
+    } catch (e) {
+      errEl.textContent = 'No se pudo conectar con el servidor.';
     }
-
-    return respond({ ok: true, mensaje: 'API del classroom Academia Virtual activa' });
-  } catch (err) {
-    return respond({ error: err.message });
   }
-}
 
-function doPost(e) {
-  let body;
-  try { body = JSON.parse(e.postData.contents); }
-  catch (err) { return respond({ error: 'Cuerpo de la petición inválido' }); }
+  function logout() {
+    sessionStorage.removeItem('alumno_token');
+    sessionStorage.removeItem('alumno_nombre');
+    location.reload();
+  }
 
-  try {
-    switch (body.action) {
+  function mostrarApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('saludo-nombre').textContent = sessionStorage.getItem('alumno_nombre') || '';
+    cargarCursos();
+  }
 
-      case 'loginAlumno':
-        return respond(loginAlumno(body.email, body.password));
+  async function cargarCursos() {
+    try {
+      const data = await api('getCursosAlumno', { token: sessionStorage.getItem('alumno_token') });
 
-      case 'getCursosAlumno': {
-        // El alumno sale del token firmado, NUNCA de un dato enviado por el navegador
-        const sesion = leerToken(body.token);
-        if (!sesion || sesion.t !== 'alumno') {
-          return respond({ sesionInvalida: true, error: 'Tu sesión venció. Volvé a ingresar.' });
-        }
-        return respond(getCursosAlumno(sesion.id));
+      // Sesión vencida o inválida: volver al login
+      if (data.sesionInvalida) {
+        sessionStorage.removeItem('alumno_token');
+        sessionStorage.removeItem('alumno_nombre');
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('login-error').textContent = 'Tu sesión venció. Volvé a ingresar.';
+        return;
       }
+      if (data.error) throw new Error(data.error);
 
-      default:
-        return respond({ error: 'Acción no reconocida: ' + body.action });
+      estadoEl.style.display = 'none';
+      const cursos = data.cursos || [];
+      if (cursos.length === 0) { vacioEl.style.display = 'block'; return; }
+      cursos.forEach(curso => gridEl.appendChild(crearTarjeta(curso)));
+    } catch (e) {
+      estadoEl.style.display = 'none';
+      errorEl.style.display = 'block';
+      errorEl.textContent = 'No se pudieron cargar tus cursos. Intentá de nuevo más tarde.';
     }
-  } catch (err) {
-    return respond({ error: err.message });
   }
-}
+
+  /* ---------- Render ---------- */
+
+  function crearTarjeta(curso) {
+    const card = document.createElement('div');
+    card.className = 'curso';
+    const img = urlSegura(curso.Imagen_URL);
+    card.innerHTML = `
+      ${img
+        ? `<img class="curso-img" src="${esc(img)}" alt="${esc(curso.Nombre)}">`
+        : `<div class="curso-img"></div>`}
+      <div class="curso-body">
+        <div class="eyebrow">Curso</div>
+        <h3>${esc(curso.Nombre) || 'Curso sin nombre'}</h3>
+        <p class="desc">${esc(curso.Descripcion_Programa)}</p>
+        <div class="meta">
+          ${curso.Duracion ? `<span>${esc(curso.Duracion)}</span>` : ''}
+          ${curso.Puntaje_Minimo_Aprobacion ? `<span>Aprobación ${esc(curso.Puntaje_Minimo_Aprobacion)}</span>` : ''}
+        </div>
+        <button class="btn-ver">Ver contenido</button>
+      </div>
+      <div class="detalle">
+        ${curso.Descripcion_Larga ? `<div class="desc-larga">${esc(curso.Descripcion_Larga)}</div>` : ''}
+        ${(curso.Clases || []).map(renderClase).join('') || '<p style="color:var(--ink-soft);font-style:italic;">Todavía no hay clases cargadas para este curso.</p>'}
+      </div>
+    `;
+    const boton = card.querySelector('.btn-ver');
+    const detalle = card.querySelector('.detalle');
+    boton.addEventListener('click', () => {
+      const abierto = detalle.classList.toggle('abierto');
+      boton.classList.toggle('abierto', abierto);
+      boton.textContent = abierto ? 'Ocultar contenido' : 'Ver contenido';
+    });
+    return card;
+  }
+
+  function renderClase(clase) {
+    const contenidos = clase.Contenidos || [];
+    return `
+      <div class="clase">
+        <h4>${clase.Orden ? `<span class="orden">${esc(String(clase.Orden).padStart(2, '0'))}</span>` : ''}${esc(clase.Titulo)}</h4>
+        ${contenidos.length
+          ? contenidos.map(renderContenido).join('')
+          : '<p style="font-size:13.5px;color:var(--ink-soft);font-style:italic;">Sin contenidos cargados aún.</p>'}
+      </div>`;
+  }
+
+  function renderContenido(item) {
+    if (item.Tipo === 'Video') {
+      const id = idYoutubeSeguro(item.Link);
+      if (!id) return '';
+      return `<div style="margin-bottom:18px;">
+        <p style="font-size:12px;color:var(--rose-deep);text-transform:uppercase;letter-spacing:.18em;margin-bottom:8px;">▶ ${esc(item.Nombre || 'Video')}</p>
+        <iframe src="https://www.youtube.com/embed/${id}" title="${esc(item.Nombre || 'Video')}" allowfullscreen></iframe>
+      </div>`;
+    }
+    const link = urlSegura(item.Link);
+    if (!link) return '';
+    return `<div class="lista-pdf"><a href="${esc(link)}" target="_blank" rel="noopener">${esc(item.Nombre || 'Descargar PDF')}</a></div>`;
+  }
+
+  // Si ya había una sesión activa, entra directo (el servidor valida el token)
+  if (sessionStorage.getItem('alumno_token')) { mostrarApp(); }
+</script>
+
+</body>
+</html>
