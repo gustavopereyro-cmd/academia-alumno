@@ -76,7 +76,6 @@
     border:none; padding:15px; border-radius:2px;
     cursor:pointer; transition:all .3s ease;
   }
-  .btn-login:hover{background:var(--rose-deep); letter-spacing:.28em;}
 
   /* ---------- HEADER ---------- */
   header{
@@ -102,7 +101,6 @@
     margin-top:6px; padding:4px 0; border-bottom:1px solid transparent;
     transition:border-color .2s;
   }
-  .btn-salir:hover{border-bottom-color:var(--rose-deep);}
 
   /* ---------- MAIN ---------- */
   main{padding:48px 0 100px;}
@@ -128,8 +126,6 @@
     transform:scaleX(0); transform-origin:left;
     transition:transform .5s ease;
   }
-  .curso:hover{transform:translateY(-4px); box-shadow:0 24px 48px -24px rgba(201,143,138,.28);}
-  .curso:hover::before{transform:scaleX(1);}
   .curso-img{
     width:100%; aspect-ratio:16/10; object-fit:cover;
     background:var(--paper); display:block;
@@ -159,7 +155,6 @@
     padding:12px 22px; border-radius:2px; cursor:pointer;
     transition:all .3s ease;
   }
-  .btn-ver:hover{background:var(--ink); color:var(--white); letter-spacing:.28em;}
   .btn-ver.abierto{background:var(--rose-deep); color:var(--white); border-color:var(--rose-deep);}
 
   /* ---------- DETALLE ---------- */
@@ -205,7 +200,21 @@
     content:'↓'; font-size:14px; color:var(--rose-deep);
     font-weight:500;
   }
-  .lista-pdf a:hover{border-color:var(--rose); background:var(--rose-soft);}
+
+  .btn-login:disabled{opacity:.6; cursor:wait;}
+
+  /* ---------- ESQUELETOS DE CARGA ---------- */
+  .skeleton-card{background:var(--white); border:1px solid var(--line); border-radius:2px; overflow:hidden;}
+  .skeleton-img, .skeleton-line{
+    background:linear-gradient(90deg, #F1ECE7 25%, #E8E0D8 50%, #F1ECE7 75%);
+    background-size:200% 100%; animation:shimmer 1.5s infinite linear;
+  }
+  .skeleton-img{width:100%; aspect-ratio:16/10;}
+  .skeleton-body{padding:26px 24px 22px; display:flex; flex-direction:column; gap:12px;}
+  .skeleton-line{height:14px; border-radius:2px;}
+  .skeleton-line.titulo{height:26px; width:75%;}
+  .skeleton-line.corta{width:60%;}
+  @keyframes shimmer{0%{background-position:200% 0;} 100%{background-position:-200% 0;}}
 
   #vacio, #error{
     text-align:center; padding:80px 20px;
@@ -222,6 +231,18 @@
     .login-logo{width:180px;}
     .grid{grid-template-columns:1fr; gap:24px;}
   }
+
+  /* Botones: sin doble toque en celulares */
+  button, a{touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+  /* Efectos al pasar el mouse: solo en computadoras con mouse */
+  @media (hover:hover) and (pointer:fine){
+    .btn-login:hover{background:var(--rose-deep);}
+    .btn-salir:hover{border-bottom-color:var(--rose-deep);}
+    .curso:hover{transform:translateY(-4px); box-shadow:0 24px 48px -24px rgba(201,143,138,.28);}
+    .curso:hover::before{transform:scaleX(1);}
+    .btn-ver:hover{background:var(--ink); color:var(--white);}
+    .lista-pdf a:hover{border-color:var(--rose); background:var(--rose-soft);}
+  }
 </style>
 </head>
 <body>
@@ -232,10 +253,10 @@
     <img class="login-logo" src="logo-completo.png" alt="Instituto Mariana Barrera">
     <h1>Mariana Barrera</h1>
     <div class="sub">Aula Virtual</div>
-    <input id="login-email" type="text" placeholder="Email" autocomplete="username">
+    <input id="login-email" type="email" placeholder="Email" autocomplete="username" autocapitalize="off">
     <input id="login-pass" type="password" placeholder="Contraseña" autocomplete="current-password">
     <div class="login-error" id="login-error"></div>
-    <button class="btn-login" onclick="doLogin()">Ingresar</button>
+    <button class="btn-login" id="btn-login" onclick="doLogin()">Ingresar</button>
   </div>
 </div>
 
@@ -247,7 +268,7 @@
       <div class="brand-text">
         <div class="eyebrow">Aula Virtual</div>
         <h1>Mariana Barrera</h1>
-        <div class="sub">Instituto de Estética &amp; Cosmatría</div>
+        <div class="sub">Instituto de Estética &amp; Cosmiatría</div>
       </div>
     </div>
     <div class="saludo">
@@ -259,7 +280,7 @@
 
   <main>
     <div class="wrap">
-      <div id="estado">Cargando tus cursos…</div>
+      <div id="estado" style="display:none;"></div>
       <div id="grid" class="grid"></div>
       <div id="vacio" style="display:none;">Todavía no tenés cursos habilitados. Consultá con el instituto.</div>
       <div id="error" style="display:none;"></div>
@@ -318,13 +339,15 @@
     const errEl = document.getElementById('login-error');
     errEl.textContent = '';
     if (!email || !password) { errEl.textContent = 'Completá email y contraseña.'; return; }
+    const btn = document.getElementById('btn-login');
+    btn.disabled = true; btn.textContent = 'Ingresando…';
     try {
       const result = await api('loginAlumno', { email, password });
       if (result.success && result.token) {
         // Solo se guarda el token y el nombre para el saludo
         sessionStorage.setItem('alumno_token', result.token);
         sessionStorage.setItem('alumno_nombre', (result.alumno && result.alumno.Nombre) || '');
-        mostrarApp();
+        mostrarApp(result.cursos);
       } else if (result.bloqueado) {
         errEl.textContent = 'Demasiados intentos fallidos. Esperá 10 minutos y volvé a probar.';
       } else {
@@ -332,8 +355,15 @@
       }
     } catch (e) {
       errEl.textContent = 'No se pudo conectar con el servidor.';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Ingresar';
     }
   }
+
+  // Ingresar apretando Enter
+  ['login-email', 'login-pass'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  });
 
   function logout() {
     sessionStorage.removeItem('alumno_token');
@@ -341,14 +371,39 @@
     location.reload();
   }
 
-  function mostrarApp() {
+  function mostrarApp(cursosPrecargados) {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     document.getElementById('saludo-nombre').textContent = sessionStorage.getItem('alumno_nombre') || '';
-    cargarCursos();
+    // Si el login ya trajo los cursos, se muestran sin otra llamada al servidor
+    if (Array.isArray(cursosPrecargados)) renderCursos(cursosPrecargados);
+    else cargarCursos();
+  }
+
+  function mostrarSkeletons(cantidad) {
+    gridEl.innerHTML = '';
+    for (let i = 0; i < cantidad; i++) {
+      const sk = document.createElement('div');
+      sk.className = 'skeleton-card';
+      sk.innerHTML = `<div class="skeleton-img"></div>
+        <div class="skeleton-body">
+          <div class="skeleton-line titulo"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line corta"></div>
+        </div>`;
+      gridEl.appendChild(sk);
+    }
+  }
+
+  function renderCursos(cursos) {
+    gridEl.innerHTML = '';
+    estadoEl.style.display = 'none';
+    if (!cursos.length) { vacioEl.style.display = 'block'; return; }
+    cursos.forEach(curso => gridEl.appendChild(crearTarjeta(curso)));
   }
 
   async function cargarCursos() {
+    mostrarSkeletons(3);
     try {
       const data = await api('getCursosAlumno', { token: sessionStorage.getItem('alumno_token') });
 
@@ -363,12 +418,9 @@
       }
       if (data.error) throw new Error(data.error);
 
-      estadoEl.style.display = 'none';
-      const cursos = data.cursos || [];
-      if (cursos.length === 0) { vacioEl.style.display = 'block'; return; }
-      cursos.forEach(curso => gridEl.appendChild(crearTarjeta(curso)));
+      renderCursos(data.cursos || []);
     } catch (e) {
-      estadoEl.style.display = 'none';
+      gridEl.innerHTML = '';
       errorEl.style.display = 'block';
       errorEl.textContent = 'No se pudieron cargar tus cursos. Intentá de nuevo más tarde.';
     }
@@ -390,18 +442,21 @@
         <p class="desc">${esc(curso.Descripcion_Programa)}</p>
         <div class="meta">
           ${curso.Duracion ? `<span>${esc(curso.Duracion)}</span>` : ''}
-          ${curso.Puntaje_Minimo_Aprobacion ? `<span>Aprobación ${esc(curso.Puntaje_Minimo_Aprobacion)}</span>` : ''}
         </div>
         <button class="btn-ver">Ver contenido</button>
       </div>
-      <div class="detalle">
-        ${curso.Descripcion_Larga ? `<div class="desc-larga">${esc(curso.Descripcion_Larga)}</div>` : ''}
-        ${(curso.Clases || []).map(renderClase).join('') || '<p style="color:var(--ink-soft);font-style:italic;">Todavía no hay clases cargadas para este curso.</p>'}
-      </div>
+      <div class="detalle"></div>
     `;
     const boton = card.querySelector('.btn-ver');
     const detalle = card.querySelector('.detalle');
+    let armado = false;
     boton.addEventListener('click', () => {
+      if (!armado) {
+        detalle.innerHTML = `
+          ${curso.Descripcion_Larga ? `<div class="desc-larga">${esc(curso.Descripcion_Larga)}</div>` : ''}
+          ${(curso.Clases || []).map(renderClase).join('') || '<p style="color:var(--ink-soft);font-style:italic;">Todavía no hay clases cargadas para este curso.</p>'}`;
+        armado = true;
+      }
       const abierto = detalle.classList.toggle('abierto');
       boton.classList.toggle('abierto', abierto);
       boton.textContent = abierto ? 'Ocultar contenido' : 'Ver contenido';
