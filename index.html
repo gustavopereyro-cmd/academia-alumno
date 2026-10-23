@@ -287,22 +287,38 @@
     border-radius:2px; overflow:hidden; box-shadow:0 22px 50px -26px rgba(74,68,68,.5);
   }
   .reproductor iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
-  .contenidos-clase{display:flex; flex-direction:column; gap:26px;}
-  .bloque-video .nombre-video{margin-bottom:10px; font-size:12px; color:var(--rose-deep); text-transform:uppercase; letter-spacing:.16em;}
-  .poster{
-    position:absolute; inset:0; width:100%; height:100%; border:0; padding:0; cursor:pointer;
-    background:#1F1B1B center/cover no-repeat;
+  /* ---------- Lista de contenidos de la clase ---------- */
+  .contenidos-clase{display:flex; flex-direction:column; gap:12px;}
+  .item-cont{
+    display:flex; align-items:center; gap:18px; width:100%;
+    background:var(--white); border:1px solid var(--line); border-radius:6px;
+    padding:18px 22px; text-align:left; cursor:pointer; text-decoration:none;
+    font-family:'Jost',sans-serif; color:var(--ink);
+    transition:border-color .2s, box-shadow .2s, background .2s;
   }
-  .poster::after{content:''; position:absolute; inset:0; background:rgba(31,27,27,.28); transition:background .25s;}
-  .poster .play{
-    position:absolute; z-index:1; left:50%; top:50%; transform:translate(-50%,-50%);
-    width:72px; height:72px; border-radius:50%;
-    background:rgba(255,255,255,.92); display:flex; align-items:center; justify-content:center;
-    box-shadow:0 10px 30px -8px rgba(0,0,0,.45); transition:transform .25s;
+  .item-cont .ico{
+    width:46px; height:46px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
   }
-  .poster .play svg{width:26px; height:26px; margin-left:4px; fill:var(--rose-deep);}
-  .bloque-pdf .lista-pdf a{margin-bottom:0;}
-  .bloque-pdf .lista-pdf a + a{margin-top:8px;}
+  .item-cont .ico svg{width:24px; height:24px;}
+  .ico-pdf{background:#E3F2E1; color:#3F6B45;}
+  .ico-video{background:#E1ECF8; color:#36557A;}
+  .item-cont .txt{flex:1; min-width:0;}
+  .item-cont .txt strong{display:block; font-weight:500; font-size:15px; letter-spacing:.03em; text-transform:uppercase; line-height:1.35;}
+  .item-cont .txt small{display:block; margin-top:3px; font-size:13px; color:var(--ink-soft);}
+  .item-cont .accion{
+    flex-shrink:0; font-size:10.5px; font-weight:500; text-transform:uppercase; letter-spacing:.16em;
+    color:var(--rose-deep); white-space:nowrap;
+  }
+  .item-cont.abierto{border-color:var(--rose); background:#FFFBFA; box-shadow:0 10px 30px -18px rgba(201,143,138,.5);}
+  .item-cont.abierto .ico-video{background:var(--rose-deep); color:var(--white);}
+  .player-cont{display:none; margin-top:-4px;}
+  .player-cont.abierto{display:block; animation:aparecer .3s ease;}
+  @media (max-width:640px){
+    .item-cont{padding:14px 16px; gap:14px;}
+    .item-cont .ico{width:40px; height:40px;}
+    .item-cont .accion{display:none;}
+  }
   .sin-contenido{color:var(--ink-soft); font-style:italic; font-size:14.5px; padding:30px 0;}
   .nav-clases{display:flex; justify-content:space-between; gap:12px; margin-top:34px; padding-top:22px; border-top:1px solid var(--line);}
   .btn-nav{
@@ -368,8 +384,7 @@
     .lista-pdf a:hover{border-color:var(--rose); background:var(--rose-soft);}
     .btn-volver:hover{border-bottom-color:var(--rose-deep);}
     .item-clase:not(.activa):hover{background:var(--paper);}
-    .poster:hover::after{background:rgba(31,27,27,.12);}
-    .poster:hover .play{transform:translate(-50%,-50%) scale(1.06);}
+    .item-cont:not(.abierto):hover{border-color:var(--rose); box-shadow:0 10px 30px -20px rgba(201,143,138,.45);}
     .btn-nav:hover{background:var(--rose-deep); border-color:var(--rose-deep); color:var(--white);}
     .btn-cert:hover{background:var(--rose-deep); border-color:var(--rose-deep); color:var(--white);}
     .link-cert:hover{border-bottom-color:var(--rose-deep);}
@@ -795,33 +810,27 @@
       x.Tipo === 'Video' ? idYoutubeSeguro(x.Link) : urlSegura(x.Link));
     const esUltima = i === clases.length - 1;
 
-    // Agrupa PDF seguidos en un mismo bloque; cada video va en su propio bloque
-    const bloques = [];
-    contenidos.forEach(x => {
-      if (x.Tipo === 'Video') bloques.push({ tipo: 'video', item: x });
-      else if (bloques.length && bloques[bloques.length - 1].tipo === 'pdf') bloques[bloques.length - 1].items.push(x);
-      else bloques.push({ tipo: 'pdf', items: [x] });
-    });
+    const ICO_PDF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
+    const ICO_VIDEO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5 3.5-5 3.5z" fill="currentColor"/></svg>';
 
-    let primerVideo = true;
-    const html = bloques.map(bq => {
-      if (bq.tipo === 'pdf') {
-        return `<div class="bloque-pdf"><div class="lista-pdf">${bq.items.map(p =>
-          `<a href="${esc(urlSegura(p.Link))}" target="_blank" rel="noopener">${esc(p.Nombre || 'Descargar PDF')}</a>`).join('')}</div></div>`;
+    const html = contenidos.map(x => {
+      if (x.Tipo === 'Video') {
+        const id = idYoutubeSeguro(x.Link);
+        const nombre = x.Nombre || 'Video';
+        return `<div>
+          <button class="item-cont" data-video="${id}" data-nombre="${esc(nombre)}">
+            <span class="ico ico-video">${ICO_VIDEO}</span>
+            <span class="txt"><strong>${esc(nombre)}</strong><small>Video · Tocá para reproducir</small></span>
+            <span class="accion">▶ Ver</span>
+          </button>
+          <div class="player-cont"></div>
+        </div>`;
       }
-      const id = idYoutubeSeguro(bq.item.Link);
-      const nombre = bq.item.Nombre || 'Video';
-      // El primer video se carga listo para reproducir; los demás muestran su portada y cargan al tocarlos
-      const interior = primerVideo ? iframeVideo(id, nombre, false) :
-        `<button class="poster" data-play="${id}" data-nombre="${esc(nombre)}" aria-label="Reproducir ${esc(nombre)}"
-           style="background-image:url('https://i.ytimg.com/vi/${id}/hqdefault.jpg')">
-           <span class="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
-         </button>`;
-      primerVideo = false;
-      return `<div class="bloque-video">
-        <p class="nombre-video">▶ ${esc(nombre)}</p>
-        <div class="reproductor">${interior}</div>
-      </div>`;
+      return `<a class="item-cont" href="${esc(urlSegura(x.Link))}" target="_blank" rel="noopener">
+          <span class="ico ico-pdf">${ICO_PDF}</span>
+          <span class="txt"><strong>${esc(x.Nombre || 'Material PDF')}</strong><small>Documento PDF · Se abre en otra pestaña</small></span>
+          <span class="accion">Abrir ↗</span>
+        </a>`;
     }).join('');
 
     const zona = document.getElementById('zona-clase');
@@ -837,6 +846,27 @@
     if (desplazar) zona.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  // Abre el video debajo de su tarjeta y lo reproduce; cierra (y frena) el que estuviera abierto
+  function abrirVideo(boton) {
+    const player = boton.nextElementSibling;
+    const yaAbierto = boton.classList.contains('abierto');
+    vistaCursoEl.querySelectorAll('.item-cont.abierto').forEach(b => {
+      b.classList.remove('abierto');
+      b.querySelector('small').textContent = 'Video · Tocá para reproducir';
+      b.querySelector('.accion').textContent = '▶ Ver';
+      const p = b.nextElementSibling;
+      p.classList.remove('abierto');
+      p.innerHTML = '';
+    });
+    if (yaAbierto) return;
+    boton.classList.add('abierto');
+    boton.querySelector('small').textContent = 'Video · Reproduciendo';
+    boton.querySelector('.accion').textContent = '✕ Cerrar';
+    player.innerHTML = `<div class="reproductor">${iframeVideo(boton.dataset.video, boton.dataset.nombre || 'Video', true)}</div>`;
+    player.classList.add('abierto');
+    boton.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function iframeVideo(id, nombre, autoplay) {
     return `<iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1${autoplay ? '&autoplay=1' : ''}"
       title="${esc(nombre)}" referrerpolicy="strict-origin-when-cross-origin"
@@ -849,7 +879,7 @@
     const el = e.target.closest('button');
     if (!el) return;
     if (el.dataset.clase !== undefined) seleccionarClase(Number(el.dataset.clase), true);
-    else if (el.dataset.play) el.parentElement.innerHTML = iframeVideo(el.dataset.play, el.dataset.nombre || 'Video', true);
+    else if (el.dataset.video) abrirVideo(el);
     else if (el.dataset.accion === 'volver') volverACursos();
     else if (el.dataset.accion === 'anterior') seleccionarClase(claseIdx - 1, true);
     else if (el.dataset.accion === 'siguiente') seleccionarClase(claseIdx + 1, true);
