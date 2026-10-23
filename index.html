@@ -287,6 +287,34 @@
     border-radius:2px; overflow:hidden; box-shadow:0 22px 50px -26px rgba(74,68,68,.5);
   }
   .reproductor iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
+  /* ---------- AVANCE ---------- */
+  .prog-curso{margin-top:2px;}
+  .prog-barra{height:4px; background:var(--line); border-radius:2px; overflow:hidden;}
+  .prog-barra span{display:block; height:100%; background:var(--rose-deep); transition:width .4s ease;}
+  .prog-curso small{display:block; margin-top:7px; font-size:11.5px; color:var(--ink-soft); letter-spacing:.04em;}
+  .item-clase .check{
+    width:20px; height:20px; border-radius:50%; flex-shrink:0; margin-top:1px;
+    border:1.5px solid #DCCFC8; display:flex; align-items:center; justify-content:center;
+    font-size:11px; color:transparent; transition:all .25s ease;
+  }
+  .item-clase.hecha .check{background:#5E8C61; border-color:#5E8C61; color:#fff;}
+  .item-cont .ico{position:relative;}
+  .item-cont .tilde{
+    position:absolute; right:-4px; bottom:-4px; width:19px; height:19px; border-radius:50%;
+    background:#5E8C61; color:#fff; font-size:10px; display:none; align-items:center; justify-content:center;
+    border:2px solid #fff;
+  }
+  .item-cont.visto .tilde{display:flex;}
+  .completar-clase{margin-top:26px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  .btn-completar{
+    font-family:'Jost',sans-serif; font-size:11.5px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.16em; cursor:pointer;
+    padding:13px 20px; border-radius:2px; border:1px solid #5E8C61; color:#5E8C61; background:#fff;
+    transition:all .25s ease;
+  }
+  .btn-completar.hecha{background:#5E8C61; color:#fff;}
+  .completar-clase small{font-size:12.5px; color:var(--ink-soft);}
+
   /* ---------- Lista de contenidos de la clase ---------- */
   .contenidos-clase{display:flex; flex-direction:column; gap:12px;}
   .item-cont{
@@ -384,6 +412,7 @@
     .lista-pdf a:hover{border-color:var(--rose); background:var(--rose-soft);}
     .btn-volver:hover{border-bottom-color:var(--rose-deep);}
     .item-clase:not(.activa):hover{background:var(--paper);}
+    .btn-completar:not(.hecha):hover{background:#EEF5EE;}
     .item-cont:not(.abierto):hover{border-color:var(--rose); box-shadow:0 10px 30px -20px rgba(201,143,138,.45);}
     .btn-nav:hover{background:var(--rose-deep); border-color:var(--rose-deep); color:var(--white);}
     .btn-cert:hover{background:var(--rose-deep); border-color:var(--rose-deep); color:var(--white);}
@@ -539,7 +568,7 @@
     document.getElementById('app').style.display = 'block';
     document.getElementById('saludo-nombre').textContent = sessionStorage.getItem('alumno_nombre') || '';
     // Si el login ya trajo los cursos, se muestran sin otra llamada al servidor
-    if (datos && Array.isArray(datos.cursos)) renderCursos(datos.cursos, datos.certificados || []);
+    if (datos && Array.isArray(datos.cursos)) renderCursos(datos.cursos, datos.certificados || [], datos.avance || {});
     else cargarCursos();
   }
 
@@ -558,8 +587,9 @@
     }
   }
 
-  function renderCursos(cursos, certificados) {
+  function renderCursos(cursos, certificados, avance) {
     CURSOS = cursos;
+    AVANCE = avance || {};
     renderCertificados(certificados || []);
     gridEl.innerHTML = '';
     estadoEl.style.display = 'none';
@@ -639,7 +669,7 @@
       }
       if (data.error) throw new Error(data.error);
 
-      renderCursos(data.cursos || [], data.certificados || []);
+      renderCursos(data.cursos || [], data.certificados || [], data.avance || {});
     } catch (e) {
       gridEl.innerHTML = '';
       errorEl.style.display = 'block';
@@ -650,6 +680,18 @@
   /* ---------- Grilla de cursos ---------- */
 
   let CURSOS = [];
+  let AVANCE = {};   // { ID_Clase: { items: [ID_Material...], completa: true/false } }
+
+  function estadoClase(idClase) {
+    const e = AVANCE[String(idClase)];
+    return e ? e : { items: [], completa: false };
+  }
+
+  function progresoCurso(curso) {
+    const clases = curso.Clases || [];
+    const hechas = clases.filter(c => estadoClase(c.ID_Clase).completa).length;
+    return { hechas, total: clases.length, pct: clases.length ? Math.round(hechas / clases.length * 100) : 0 };
+  }
 
   function contarContenidos(clases) {
     let videos = 0, pdfs = 0;
@@ -662,6 +704,7 @@
     card.className = 'curso';
     const img = urlSegura(curso.Imagen_URL);
     const nClases = (curso.Clases || []).length;
+    const prog = progresoCurso(curso);
     card.innerHTML = `
       ${img
         ? `<img class="curso-img" src="${esc(img)}" alt="${esc(curso.Nombre)}" loading="lazy">`
@@ -674,7 +717,11 @@
           ${curso.Duracion ? `<span>${esc(curso.Duracion)}</span>` : ''}
           ${nClases ? `<span>${nClases} ${nClases === 1 ? 'clase' : 'clases'}</span>` : ''}
         </div>
-        <button class="btn-ver">Entrar al curso</button>
+        ${nClases ? `<div class="prog-curso">
+          <div class="prog-barra"><span style="width:${prog.pct}%"></span></div>
+          <small>${prog.pct}% completado · ${prog.hechas} de ${prog.total} ${prog.total === 1 ? 'clase' : 'clases'}</small>
+        </div>` : ''}
+        <button class="btn-ver">${prog.pct === 100 ? 'Repasar curso' : prog.hechas ? 'Continuar curso' : 'Empezar curso'}</button>
       </div>`;
     const abrir = () => abrirCurso(curso.ID_Curso);
     card.querySelector('.btn-ver').addEventListener('click', abrir);
@@ -709,7 +756,10 @@
   window.addEventListener('hashchange', aplicarRuta);
 
   function mostrarGrilla() {
+    detenerSeguimiento();
     vistaCursoEl.innerHTML = '';           // corta cualquier video que esté sonando
+    // Redibuja las tarjetas para mostrar el avance actualizado
+    if (CURSOS.length) { gridEl.innerHTML = ''; CURSOS.forEach(c => gridEl.appendChild(crearTarjeta(c))); }
     vistaCursoEl.style.display = 'none';
     vistaCursosEl.style.display = 'block';
     cursoActual = null;
@@ -775,9 +825,10 @@
               const partes = [];
               if (n.videos) partes.push(n.videos + (n.videos === 1 ? ' video' : ' videos'));
               if (n.pdfs) partes.push(n.pdfs + ' PDF');
-              return `<button class="item-clase" data-clase="${i}">
+              return `<button class="item-clase${estadoClase(c.ID_Clase).completa ? ' hecha' : ''}" data-clase="${i}">
                 <span class="num">${esc(numeroClase(c, i))}</span>
                 <span class="txt"><strong>${esc(c.Titulo)}</strong><small>${partes.join(' · ') || 'Sin contenidos aún'}</small></span>
+                <span class="check" title="Clase completada">✓</span>
               </button>`;
             }).join('')}
           </aside>
@@ -797,13 +848,13 @@
   function seleccionarClase(i, desplazar) {
     const clases = cursoActual.Clases || [];
     if (i < 0 || i >= clases.length) return;
+    detenerSeguimiento();
     claseIdx = i;
     const clase = clases[i];
     guardarUltimaClase(cursoActual.ID_Curso, clase.ID_Clase);
+    const estado = estadoClase(clase.ID_Clase);
 
     vistaCursoEl.querySelectorAll('.item-clase').forEach((el, j) => el.classList.toggle('activa', j === i));
-    document.getElementById('avance').textContent = `Clase ${i + 1} de ${clases.length}`;
-    document.getElementById('barra-avance').style.width = ((i + 1) / clases.length * 100) + '%';
 
     // Los contenidos se muestran EXACTAMENTE en el orden cargado en el panel
     const contenidos = (clase.Contenidos || []).filter(x =>
@@ -817,17 +868,19 @@
       if (x.Tipo === 'Video') {
         const id = idYoutubeSeguro(x.Link);
         const nombre = x.Nombre || 'Video';
+        const visto = estado.items.indexOf(String(x.ID)) !== -1;
         return `<div>
-          <button class="item-cont" data-video="${id}" data-nombre="${esc(nombre)}">
-            <span class="ico ico-video">${ICO_VIDEO}</span>
+          <button class="item-cont${visto ? ' visto' : ''}" data-video="${id}" data-nombre="${esc(nombre)}" data-item="${esc(x.ID)}">
+            <span class="ico ico-video">${ICO_VIDEO}<span class="tilde">✓</span></span>
             <span class="txt"><strong>${esc(nombre)}</strong><small>Video · Tocá para reproducir</small></span>
             <span class="accion">▶ Ver</span>
           </button>
           <div class="player-cont"></div>
         </div>`;
       }
-      return `<a class="item-cont" href="${esc(urlSegura(x.Link))}" target="_blank" rel="noopener">
-          <span class="ico ico-pdf">${ICO_PDF}</span>
+      const visto = estado.items.indexOf(String(x.ID)) !== -1;
+      return `<a class="item-cont${visto ? ' visto' : ''}" href="${esc(urlSegura(x.Link))}" target="_blank" rel="noopener" data-item="${esc(x.ID)}">
+          <span class="ico ico-pdf">${ICO_PDF}<span class="tilde">✓</span></span>
           <span class="txt"><strong>${esc(x.Nombre || 'Material PDF')}</strong><small>Documento PDF · Se abre en otra pestaña</small></span>
           <span class="accion">Abrir ↗</span>
         </a>`;
@@ -838,18 +891,142 @@
       <div class="eyebrow-clase">Clase ${esc(numeroClase(clase, i))}</div>
       <h3>${esc(clase.Titulo)}</h3>
       ${html ? `<div class="contenidos-clase">${html}</div>` : '<p class="sin-contenido">Esta clase todavía no tiene contenidos.</p>'}
+      <div class="completar-clase">
+        <button class="btn-completar" id="btn-completar" data-accion="completar"></button>
+        <small id="ayuda-completar"></small>
+      </div>
       <div class="nav-clases">
         <button class="btn-nav" data-accion="anterior" ${i === 0 ? 'disabled' : ''}>← Anterior</button>
         <button class="btn-nav primario" data-accion="siguiente" ${esUltima ? 'disabled' : ''}>Siguiente clase →</button>
       </div>`;
 
+    actualizarAvanceUI();
     if (desplazar) zona.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ---------- Avance: actualizar pantalla y avisar al servidor ---------- */
+
+  function claseActual() {
+    return cursoActual ? (cursoActual.Clases || [])[claseIdx] : null;
+  }
+
+  function actualizarAvanceUI() {
+    if (!cursoActual) return;
+    const clases = cursoActual.Clases || [];
+    const prog = progresoCurso(cursoActual);
+    const av = document.getElementById('avance');
+    if (av) av.textContent = `${prog.hechas} de ${prog.total} ${prog.total === 1 ? 'clase completada' : 'clases completadas'} · ${prog.pct}%`;
+    const barra = document.getElementById('barra-avance');
+    if (barra) barra.style.width = prog.pct + '%';
+    vistaCursoEl.querySelectorAll('.item-clase').forEach((el, j) =>
+      el.classList.toggle('hecha', !!(clases[j] && estadoClase(clases[j].ID_Clase).completa)));
+
+    const clase = claseActual();
+    if (!clase) return;
+    const estado = estadoClase(clase.ID_Clase);
+    vistaCursoEl.querySelectorAll('.item-cont[data-item]').forEach(el =>
+      el.classList.toggle('visto', estado.items.indexOf(el.dataset.item) !== -1));
+    const btn = document.getElementById('btn-completar');
+    const ayuda = document.getElementById('ayuda-completar');
+    if (btn) {
+      btn.classList.toggle('hecha', estado.completa);
+      btn.textContent = estado.completa ? '✓ Clase completada' : 'Marcar clase como completada';
+      ayuda.textContent = estado.completa
+        ? 'Tocá de nuevo si querés desmarcarla.'
+        : 'Se marca sola cuando abrís todos los PDF y ves los videos completos.';
+    }
+  }
+
+  function guardarEstado(idClase, estado) {
+    AVANCE[String(idClase)] = { items: estado.items || [], completa: !!estado.completa };
+  }
+
+  async function enviarAvance(datos) {
+    try {
+      const r = await api('marcarAvance', Object.assign({ token: sessionStorage.getItem('alumno_token') }, datos));
+      if (r && r.ok) { guardarEstado(r.idClase, r); actualizarAvanceUI(); }
+    } catch (e) { /* si falla, se reintenta la próxima vez que vea el contenido */ }
+  }
+
+  // Un contenido se vio (PDF abierto o video casi terminado)
+  function registrarItem(idClase, idItem) {
+    if (!idClase || !idItem) return;
+    const est = estadoClase(idClase);
+    if (est.items.indexOf(String(idItem)) !== -1) return;
+    const items = est.items.concat(String(idItem));
+    // Anticipa en pantalla si con esto completó la clase
+    const clase = (cursoActual && (cursoActual.Clases || []).find(c => String(c.ID_Clase) === String(idClase))) || null;
+    const todos = clase ? (clase.Contenidos || []).map(c => String(c.ID)).filter(Boolean) : [];
+    const completa = est.completa || (todos.length > 0 && todos.every(id => items.indexOf(id) !== -1));
+    guardarEstado(idClase, { items, completa });
+    actualizarAvanceUI();
+    enviarAvance({ idClase: String(idClase), idItem: String(idItem) });
+  }
+
+  function alternarCompletada() {
+    const clase = claseActual();
+    if (!clase) return;
+    const est = estadoClase(clase.ID_Clase);
+    guardarEstado(clase.ID_Clase, { items: est.items, completa: !est.completa });
+    actualizarAvanceUI();
+    enviarAvance({ idClase: String(clase.ID_Clase), completar: !est.completa });
+  }
+
+  /* ---------- Seguimiento del video (API de YouTube) ---------- */
+
+  let ytPromesa = null;
+  function cargarYT() {
+    if (window.YT && window.YT.Player) return Promise.resolve();
+    if (ytPromesa) return ytPromesa;
+    ytPromesa = new Promise((resolve, reject) => {
+      const previo = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { if (previo) previo(); resolve(); };
+      const s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      s.onerror = () => { ytPromesa = null; reject(new Error('YouTube no disponible')); };
+      document.head.appendChild(s);
+      setTimeout(() => reject(new Error('YouTube tardó demasiado')), 8000);
+    });
+    return ytPromesa;
+  }
+
+  let seguimiento = null;   // { player, intervalo }
+  function detenerSeguimiento() {
+    if (!seguimiento) return;
+    clearInterval(seguimiento.intervalo);
+    try { seguimiento.player && seguimiento.player.destroy && seguimiento.player.destroy(); } catch (e) {}
+    seguimiento = null;
+  }
+
+  function seguirVideo(contenedor, idVideo, nombre, idClase, idItem) {
+    contenedor.innerHTML = '<div class="reproductor"><div></div></div>';
+    const destino = contenedor.querySelector('.reproductor > div');
+    const fallback = () => { contenedor.innerHTML = `<div class="reproductor">${iframeVideo(idVideo, nombre, true)}</div>`; };
+    cargarYT().then(() => {
+      if (!destino.isConnected) return;            // el alumno ya cerró el video
+      let marcado = false;
+      const marcar = () => { if (!marcado) { marcado = true; registrarItem(idClase, idItem); } };
+      const player = new YT.Player(destino, {
+        videoId: idVideo,
+        host: 'https://www.youtube-nocookie.com',
+        playerVars: { rel: 0, modestbranding: 1, playsinline: 1, autoplay: 1, origin: location.origin },
+        events: { onStateChange: ev => { if (ev.data === YT.PlayerState.ENDED) marcar(); } }
+      });
+      const intervalo = setInterval(() => {
+        try {
+          const d = player.getDuration(), t = player.getCurrentTime();
+          if (d > 0 && t / d >= 0.9) marcar();       // visto al 90%
+        } catch (e) {}
+      }, 3000);
+      seguimiento = { player, intervalo };
+    }).catch(fallback);
   }
 
   // Abre el video debajo de su tarjeta y lo reproduce; cierra (y frena) el que estuviera abierto
   function abrirVideo(boton) {
     const player = boton.nextElementSibling;
     const yaAbierto = boton.classList.contains('abierto');
+    detenerSeguimiento();
     vistaCursoEl.querySelectorAll('.item-cont.abierto').forEach(b => {
       b.classList.remove('abierto');
       b.querySelector('small').textContent = 'Video · Tocá para reproducir';
@@ -862,7 +1039,8 @@
     boton.classList.add('abierto');
     boton.querySelector('small').textContent = 'Video · Reproduciendo';
     boton.querySelector('.accion').textContent = '✕ Cerrar';
-    player.innerHTML = `<div class="reproductor">${iframeVideo(boton.dataset.video, boton.dataset.nombre || 'Video', true)}</div>`;
+    const clase = claseActual();
+    seguirVideo(player, boton.dataset.video, boton.dataset.nombre || 'Video', clase && clase.ID_Clase, boton.dataset.item);
     player.classList.add('abierto');
     boton.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -876,10 +1054,14 @@
 
   // Un solo manejador para todos los botones de la vista del curso
   vistaCursoEl.addEventListener('click', e => {
+    // PDF abierto = contenido visto (el link se abre igual en otra pestaña)
+    const pdf = e.target.closest('a.item-cont[data-item]');
+    if (pdf) { const c = claseActual(); if (c) registrarItem(c.ID_Clase, pdf.dataset.item); return; }
     const el = e.target.closest('button');
     if (!el) return;
     if (el.dataset.clase !== undefined) seleccionarClase(Number(el.dataset.clase), true);
     else if (el.dataset.video) abrirVideo(el);
+    else if (el.dataset.accion === 'completar') alternarCompletada();
     else if (el.dataset.accion === 'volver') volverACursos();
     else if (el.dataset.accion === 'anterior') seleccionarClase(claseIdx - 1, true);
     else if (el.dataset.accion === 'siguiente') seleccionarClase(claseIdx + 1, true);
