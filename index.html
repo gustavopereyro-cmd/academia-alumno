@@ -371,6 +371,89 @@
 
   .btn-login:disabled{opacity:.6; cursor:wait;}
 
+  /* ---------- EXAMEN FINAL ---------- */
+  .tarjeta-examen{
+    margin-top:40px; background:var(--white); border:1px solid var(--line); border-radius:6px;
+    padding:26px 28px; display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap;
+  }
+  .tarjeta-examen .ico-ex{
+    width:52px; height:52px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; background:var(--rose-soft); color:var(--rose-deep);
+  }
+  .tarjeta-examen .ico-ex svg{width:26px; height:26px;}
+  .tarjeta-examen.bloqueada .ico-ex{background:var(--paper); color:var(--ink-soft);}
+  .tarjeta-examen.aprobada{border-color:#BFD6BD; background:linear-gradient(135deg,#FFFFFF 0%,#EEF5EE 100%);}
+  .tarjeta-examen.aprobada .ico-ex{background:#5E8C61; color:#fff;}
+  .tarjeta-examen .cuerpo-ex{flex:1; min-width:220px;}
+  .tarjeta-examen .eyebrow-clase{display:block; margin-bottom:4px;}
+  .tarjeta-examen h3{font-size:26px; line-height:1.15; color:var(--ink); margin-bottom:6px;}
+  .tarjeta-examen p{font-size:14.5px; color:var(--ink-soft);}
+  .datos-ex{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 0;}
+  .datos-ex span{font-size:12.5px; background:var(--paper); border:1px solid var(--line); padding:4px 10px; border-radius:999px; color:var(--ink);}
+  .acciones-ex{display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; align-items:center;}
+  .confirmar-ex{margin-top:18px; padding:16px 18px; border-radius:4px; background:#FFFBFA; border:1px solid var(--rose); font-size:14.5px;}
+  .confirmar-ex strong{font-weight:500;}
+  .msg-ex{margin-top:12px; font-size:14px; color:var(--error);}
+  .msg-ex:empty{display:none;}
+  .btn-ex{
+    font-family:'Jost',sans-serif; font-size:11.5px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.16em; cursor:pointer; min-height:46px;
+    padding:13px 22px; border-radius:2px; border:1px solid var(--ink); background:var(--ink); color:var(--white);
+    transition:background .2s, border-color .2s, transform .15s;
+  }
+  .btn-ex:active{transform:scale(.97);}
+  .btn-ex.sec{background:transparent; color:var(--ink);}
+  .btn-ex:disabled{opacity:.55; cursor:wait;}
+  .chip-ex{color:#3F6B45 !important; font-weight:500;}
+
+  .vista-examen{max-width:760px; margin:0 auto;}
+  .vista-examen .curso-top{align-items:flex-start;}
+  .barra-examen{
+    position:sticky; top:0; z-index:5; display:flex; justify-content:space-between; align-items:center; gap:12px;
+    background:rgba(253,251,249,.94); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line); padding:12px 0; margin-bottom:22px;
+  }
+  .barra-examen .progreso-ex{font-size:12px; text-transform:uppercase; letter-spacing:.16em; color:var(--ink-soft);}
+  .reloj{font-variant-numeric:tabular-nums; font-weight:500; font-size:15px; padding:6px 14px; border-radius:999px; background:var(--paper); border:1px solid var(--line);}
+  .reloj.urgente{background:#FBEFED; border-color:#F0D5D0; color:#A8473A;}
+  .instrucciones-ex{background:var(--white); border:1px solid var(--line); border-radius:4px; padding:14px 18px; margin-bottom:22px; font-size:14.5px; white-space:pre-wrap;}
+  .preg-ex{border:1px solid var(--line); background:var(--white); border-radius:6px; padding:22px 22px 16px; margin:0 0 16px;}
+  .preg-ex legend{display:contents;}
+  .preg-ex .n{display:block; font-size:10.5px; font-weight:500; text-transform:uppercase; letter-spacing:.24em; color:var(--rose-deep); margin-bottom:6px;}
+  .preg-ex .t{display:block; font-size:16.5px; font-weight:400; line-height:1.5; margin-bottom:14px; white-space:pre-wrap;}
+  .op-ex{
+    display:flex; align-items:center; gap:14px; min-height:48px; cursor:pointer;
+    padding:10px 14px; margin-bottom:8px; border:1px solid var(--line); border-radius:6px; font-size:15px;
+    transition:border-color .15s, background .15s;
+  }
+  .op-ex input{position:absolute; opacity:0; pointer-events:none;}
+  .op-ex .letra{
+    width:30px; height:30px; flex-shrink:0; border-radius:50%; border:1.5px solid #DCCFC8;
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:500; color:var(--ink-soft);
+    transition:all .15s;
+  }
+  .op-ex.elegida{border-color:var(--rose-deep); background:#FFF8F6;}
+  .op-ex input:checked + .letra{background:var(--rose-deep); border-color:var(--rose-deep); color:#fff;}
+  .op-ex input:focus-visible + .letra{outline:2px solid var(--rose-deep); outline-offset:3px;}
+  .enviar-ex{margin:28px 0 10px; padding-top:22px; border-top:1px solid var(--line);}
+  .resultado-ex{text-align:center; padding:56px 20px 30px; max-width:520px; margin:0 auto;}
+  .resultado-ex .ico-ex{width:76px; height:76px; margin:0 auto 20px; border-radius:50%; display:flex; align-items:center; justify-content:center;}
+  .resultado-ex .ico-ex svg{width:36px; height:36px;}
+  .resultado-ex.ok .ico-ex{background:#5E8C61; color:#fff;}
+  .resultado-ex.no .ico-ex{background:var(--rose-soft); color:var(--rose-deep);}
+  .resultado-ex h2{font-size:clamp(30px,4vw,40px); margin-bottom:10px;}
+  .resultado-ex p{color:var(--ink-soft); font-size:15.5px;}
+  .resultado-ex .acciones-ex{justify-content:center; margin-top:28px;}
+  @media (max-width:640px){
+    .tarjeta-examen{padding:22px 20px;}
+    .preg-ex{padding:18px 16px 12px;}
+  }
+  @media (hover:hover) and (pointer:fine){
+    .btn-ex:hover{background:var(--rose-deep); border-color:var(--rose-deep); color:var(--white);}
+    .op-ex:hover{border-color:var(--rose);}
+  }
+  @media (prefers-reduced-motion:reduce){ .btn-ex:active{transform:none;} }
+
   /* ---------- ESQUELETOS DE CARGA ---------- */
   .skeleton-card{background:var(--white); border:1px solid var(--line); border-radius:2px; overflow:hidden;}
   .skeleton-img, .skeleton-line{
@@ -716,6 +799,8 @@
         <div class="meta">
           ${curso.Duracion ? `<span>${esc(curso.Duracion)}</span>` : ''}
           ${nClases ? `<span>${nClases} ${nClases === 1 ? 'clase' : 'clases'}</span>` : ''}
+          ${curso.Examen && curso.Examen.Aprobado ? '<span class="chip-ex">✓ Examen aprobado</span>'
+            : curso.Examen && (prog.total === 0 || prog.hechas === prog.total) && curso.Examen.Restantes > 0 ? '<span class="chip-ex">Examen final disponible</span>' : ''}
         </div>
         ${nClases ? `<div class="prog-curso">
           <div class="prog-barra"><span style="width:${prog.pct}%"></span></div>
@@ -757,6 +842,7 @@
 
   function mostrarGrilla() {
     detenerSeguimiento();
+    detenerExamen();
     vistaCursoEl.innerHTML = '';           // corta cualquier video que esté sonando
     // Redibuja las tarjetas para mostrar el avance actualizado
     if (CURSOS.length) { gridEl.innerHTML = ''; CURSOS.forEach(c => gridEl.appendChild(crearTarjeta(c))); }
@@ -783,6 +869,7 @@
   }
 
   function mostrarCurso(curso) {
+    detenerExamen();
     cursoActual = curso;
     const clases = curso.Clases || [];
     vistaCursosEl.style.display = 'none';
@@ -835,8 +922,10 @@
           <section class="zona-clase" id="zona-clase"></section>
         </div>`
       : '<p class="sin-contenido">Todavía no hay clases cargadas para este curso.</p>'}
+      <div id="zona-examen"></div>
     `;
     window.scrollTo(0, 0);
+    renderTarjetaExamen();
 
     if (clases.length) {
       const ultima = leerUltimaClase(curso.ID_Curso);
@@ -921,6 +1010,7 @@
     vistaCursoEl.querySelectorAll('.item-clase').forEach((el, j) =>
       el.classList.toggle('hecha', !!(clases[j] && estadoClase(clases[j].ID_Clase).completa)));
 
+    renderTarjetaExamen();
     const clase = claseActual();
     if (!clase) return;
     const estado = estadoClase(clase.ID_Clase);
@@ -1052,6 +1142,255 @@
       allowfullscreen></iframe>`;
   }
 
+  /* ---------- Examen final ---------- */
+
+  const ICO_EXAMEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4h6M9 4a1 1 0 0 0-1 1v1h8V5a1 1 0 0 0-1-1M8 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2"/><path d="m9 13 2 2 4-4"/></svg>';
+  const ICO_CANDADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  const ICO_OK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+  const ICO_REPASO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>';
+
+  let EXAMEN = null;          // examen en curso: { curso, datos, respuestas, reloj, fin, enviando }
+  let pidiendoConfirmacion = false;
+
+  function plural(n, uno, varios) { return n + ' ' + (n === 1 ? uno : varios); }
+
+  function detenerExamen() {
+    if (EXAMEN && EXAMEN.reloj) clearInterval(EXAMEN.reloj);
+    EXAMEN = null;
+    pidiendoConfirmacion = false;
+  }
+
+  function renderTarjetaExamen(mensaje) {
+    const zona = document.getElementById('zona-examen');
+    if (!zona || !cursoActual) return;
+    const ex = cursoActual.Examen;
+    if (!ex) { zona.innerHTML = ''; return; }
+    const prog = progresoCurso(cursoActual);
+    const completo = prog.total === 0 || prog.hechas === prog.total;
+    const datos = `<div class="datos-ex">
+        <span>${plural(ex.Preguntas, 'pregunta', 'preguntas')}</span>
+        <span>${ex.Tiempo_Min ? ex.Tiempo_Min + ' minutos' : 'Sin límite de tiempo'}</span>
+        <span>Se aprueba con ${esc(ex.Nota_Minima)}%</span>
+      </div>`;
+    let clase = '', ico = ICO_EXAMEN, titulo = esc(ex.Titulo), texto = '', acciones = '';
+
+    if (ex.Aprobado) {
+      clase = 'aprobada'; ico = ICO_OK; titulo = 'Examen aprobado';
+      texto = '¡Felicitaciones! Aprobaste el examen final de este curso. Tu resultado quedó registrado en el instituto.';
+    } else if (ex.EnCurso) {
+      texto = 'Tenés el examen empezado.' + (ex.Tiempo_Min ? ' El tiempo sigue corriendo.' : '');
+      acciones = '<button class="btn-ex" data-accion="empezar-examen">Continuar examen</button>';
+    } else if (!completo) {
+      clase = 'bloqueada'; ico = ICO_CANDADO;
+      const faltan = prog.total - prog.hechas;
+      texto = `Se habilita cuando completes todas las clases del curso. Te ${faltan === 1 ? 'falta 1 clase' : 'faltan ' + faltan + ' clases'}.`;
+    } else if (ex.Restantes <= 0) {
+      clase = 'bloqueada'; titulo = 'No aprobaste el examen';
+      texto = `Ya usaste ${ex.Intentos_Total === 1 ? 'tu intento' : 'tus ' + ex.Intentos_Total + ' intentos'}. Comunicate con el instituto para ver cómo seguir.`;
+    } else {
+      texto = ex.Rendido
+        ? `No aprobaste el intento anterior. Repasá las clases y volvé a intentarlo: te ${ex.Restantes === 1 ? 'queda 1 intento' : 'quedan ' + ex.Restantes + ' intentos'}.`
+        : `Completaste todas las clases. Ya podés rendir el examen final: tenés ${plural(ex.Restantes, 'intento', 'intentos')}.`;
+      acciones = pidiendoConfirmacion
+        ? `<div class="confirmar-ex" role="group" aria-label="Confirmar inicio del examen">
+            <strong>¿Empezamos?</strong> Vas a usar 1 de tus ${plural(ex.Restantes, 'intento restante', 'intentos restantes')}.
+            ${ex.Tiempo_Min ? `Tenés ${ex.Tiempo_Min} minutos desde que empezás; al terminar el tiempo se envía solo.` : 'No tiene límite de tiempo.'}
+            <div class="acciones-ex">
+              <button class="btn-ex" data-accion="empezar-examen">Empezar ahora</button>
+              <button class="btn-ex sec" data-accion="cancelar-examen">Todavía no</button>
+            </div>
+          </div>`
+        : '<button class="btn-ex" data-accion="rendir-examen">Rendir examen</button>';
+    }
+    zona.innerHTML = `<section class="tarjeta-examen ${clase}" aria-labelledby="titulo-ex">
+        <div class="ico-ex">${ico}</div>
+        <div class="cuerpo-ex">
+          <span class="eyebrow-clase">Cierre del curso</span>
+          <h3 id="titulo-ex">${titulo}</h3>
+          <p>${texto}</p>
+          ${!ex.Aprobado && ex.Restantes > 0 ? datos : ''}
+          ${acciones ? `<div class="acciones-ex">${acciones}</div>` : ''}
+          <div class="msg-ex" id="msg-ex" role="alert">${esc(mensaje || '')}</div>
+        </div>
+      </section>`;
+  }
+
+  function sesionVencidaAula() {
+    sessionStorage.removeItem('alumno_token');
+    sessionStorage.removeItem('alumno_nombre');
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('login-error').textContent = 'Tu sesión venció. Volvé a ingresar.';
+  }
+
+  async function empezarExamen(boton) {
+    const curso = cursoActual;
+    if (!curso || !curso.Examen) return;
+    boton.disabled = true; boton.textContent = 'Preparando…';
+    try {
+      const r = await api('iniciarExamen', { token: sessionStorage.getItem('alumno_token'), idCurso: curso.ID_Curso });
+      if (r.sesionInvalida) { sesionVencidaAula(); return; }
+      if (r.error || !r.ok) throw new Error(r.error || 'No se pudo abrir el examen.');
+      pidiendoConfirmacion = false;
+      curso.Examen.EnCurso = true;
+      mostrarExamen(curso, r);
+    } catch (e) {
+      pidiendoConfirmacion = false;
+      renderTarjetaExamen(e instanceof TypeError ? 'No hay conexión. Revisá tu internet y probá de nuevo.' : e.message);
+    }
+  }
+
+  function claveRespuestas(idIntento) { return 'aula_examen_' + idIntento; }
+  function leerRespuestas(idIntento) {
+    try { return JSON.parse(localStorage.getItem(claveRespuestas(idIntento)) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function guardarRespuestas() {
+    if (!EXAMEN) return;
+    try { localStorage.setItem(claveRespuestas(EXAMEN.datos.idIntento), JSON.stringify(EXAMEN.respuestas)); } catch (e) {}
+  }
+
+  function mostrarExamen(curso, datos) {
+    detenerSeguimiento();
+    detenerExamen();
+    EXAMEN = { curso, datos, respuestas: leerRespuestas(datos.idIntento), reloj: null, fin: null, enviando: false };
+    const n = datos.preguntas.length;
+    vistaCursoEl.innerHTML = `
+      <div class="vista-examen">
+        <div class="curso-top">
+          <div>
+            <button class="btn-volver" data-accion="salir-examen">← Volver al curso</button>
+            <h2>${esc(datos.titulo || 'Examen final')}</h2>
+            <p style="color:var(--ink-soft);font-size:14px;margin-top:4px">${esc(curso.Nombre)} · Intento ${esc(datos.intento)}</p>
+          </div>
+        </div>
+        <div class="barra-examen">
+          <span class="progreso-ex" id="progreso-ex" aria-live="polite"></span>
+          ${datos.segundosRestantes !== null ? '<span class="reloj" id="reloj-ex" role="timer" aria-label="Tiempo restante"></span>' : ''}
+        </div>
+        ${datos.instrucciones ? `<div class="instrucciones-ex">${esc(datos.instrucciones)}</div>` : ''}
+        <form id="form-examen" onsubmit="return false">
+          ${datos.preguntas.map((p, i) => `
+            <fieldset class="preg-ex">
+              <legend><span class="n">Pregunta ${i + 1} de ${n}</span><span class="t">${esc(p.Pregunta)}</span></legend>
+              ${(p.Opciones || []).map(o => `
+                <label class="op-ex${EXAMEN.respuestas[p.ID] === o.L ? ' elegida' : ''}">
+                  <input type="radio" name="q_${esc(p.ID)}" value="${esc(o.L)}" data-preg="${esc(p.ID)}" ${EXAMEN.respuestas[p.ID] === o.L ? 'checked' : ''}>
+                  <span class="letra" aria-hidden="true">${esc(o.L)}</span><span>${esc(o.T)}</span>
+                </label>`).join('')}
+            </fieldset>`).join('')}
+        </form>
+        <div class="enviar-ex" id="enviar-ex"></div>
+      </div>`;
+    window.scrollTo(0, 0);
+    actualizarProgresoExamen();
+    renderEnvio();
+    if (datos.segundosRestantes !== null) {
+      EXAMEN.fin = Date.now() + datos.segundosRestantes * 1000;
+      tickReloj();
+      EXAMEN.reloj = setInterval(tickReloj, 1000);
+    }
+  }
+
+  function tickReloj() {
+    if (!EXAMEN || !EXAMEN.fin) return;
+    const resta = Math.max(0, Math.round((EXAMEN.fin - Date.now()) / 1000));
+    const el = document.getElementById('reloj-ex');
+    if (el) {
+      el.textContent = '⏱ ' + Math.floor(resta / 60) + ':' + String(resta % 60).padStart(2, '0');
+      el.classList.toggle('urgente', resta <= 60);
+    }
+    if (resta === 0) { clearInterval(EXAMEN.reloj); EXAMEN.reloj = null; enviarExamen(true); }
+  }
+
+  function sinResponder() {
+    return EXAMEN ? EXAMEN.datos.preguntas.filter(p => !EXAMEN.respuestas[p.ID]).length : 0;
+  }
+  function actualizarProgresoExamen() {
+    if (!EXAMEN) return;
+    const n = EXAMEN.datos.preguntas.length;
+    const el = document.getElementById('progreso-ex');
+    if (el) el.textContent = `Respondiste ${n - sinResponder()} de ${n}`;
+  }
+
+  function renderEnvio(confirmando, mensaje) {
+    const zona = document.getElementById('enviar-ex');
+    if (!zona || !EXAMEN) return;
+    if (EXAMEN.enviando) {
+      zona.innerHTML = '<div class="acciones-ex"><button class="btn-ex" disabled>Corrigiendo…</button></div>';
+      return;
+    }
+    const faltan = sinResponder();
+    zona.innerHTML = confirmando
+      ? `<div class="confirmar-ex" role="group" aria-label="Confirmar envío">
+          ${faltan ? `<strong>Te ${faltan === 1 ? 'falta 1 pregunta' : 'faltan ' + faltan + ' preguntas'} sin responder.</strong> Las preguntas sin responder cuentan como incorrectas.`
+                   : '<strong>¿Enviás el examen?</strong> Después de enviarlo no vas a poder cambiar las respuestas.'}
+          <div class="acciones-ex">
+            <button class="btn-ex" data-accion="confirmar-envio">Sí, enviar examen</button>
+            <button class="btn-ex sec" data-accion="seguir-revisando">Seguir revisando</button>
+          </div>
+        </div>`
+      : `<div class="acciones-ex"><button class="btn-ex" data-accion="enviar-examen">Enviar examen</button></div>`;
+    if (mensaje) zona.insertAdjacentHTML('beforeend', `<div class="msg-ex" role="alert">${esc(mensaje)}</div>`);
+  }
+
+  async function enviarExamen(automatico) {
+    if (!EXAMEN || EXAMEN.enviando) return;
+    EXAMEN.enviando = true;
+    renderEnvio();
+    const ex = EXAMEN;
+    try {
+      const r = await api('enviarExamen', { token: sessionStorage.getItem('alumno_token'),
+        idIntento: ex.datos.idIntento, respuestas: ex.respuestas });
+      if (r.sesionInvalida) { sesionVencidaAula(); return; }
+      if (r.error || !r.ok) {
+        // Si ya estaba enviado (por ejemplo desde otra pestaña), se recarga el estado
+        if (/ya fue enviado/i.test(r.error || '')) { detenerExamen(); cargarCursos(); return; }
+        throw new Error(r.error || 'No se pudo enviar el examen.');
+      }
+      try { localStorage.removeItem(claveRespuestas(ex.datos.idIntento)); } catch (e) {}
+      if (ex.reloj) clearInterval(ex.reloj);
+      ex.curso.Examen = r.examen || Object.assign({}, ex.curso.Examen, { EnCurso: false, Aprobado: !!r.aprobado });
+      EXAMEN = null;
+      mostrarResultado(ex.curso, r, automatico);
+    } catch (e) {
+      ex.enviando = false;
+      renderEnvio(false, (e instanceof TypeError ? 'No hay conexión. Tus respuestas están guardadas: revisá tu internet y tocá Enviar de nuevo.' : e.message));
+    }
+  }
+
+  function mostrarResultado(curso, r, automatico) {
+    const ex = curso.Examen || {};
+    const restantes = Number(ex.Restantes) || 0;
+    const titulo = r.aprobado ? '¡Aprobaste el examen!' : 'No aprobaste esta vez';
+    let texto;
+    if (r.aprobado) texto = 'Tu resultado quedó registrado en el instituto.';
+    else if (r.tarde) texto = 'El examen llegó fuera de tiempo y no se pudo corregir.';
+    else texto = 'Repasá las clases y volvé a intentarlo.';
+    if (!r.aprobado) texto += restantes > 0
+      ? ` Te ${restantes === 1 ? 'queda 1 intento' : 'quedan ' + restantes + ' intentos'}.`
+      : ' Ya usaste todos tus intentos: comunicate con el instituto.';
+    vistaCursoEl.innerHTML = `
+      <div class="resultado-ex ${r.aprobado ? 'ok' : 'no'}" role="status">
+        <div class="ico-ex">${r.aprobado ? ICO_OK : ICO_REPASO}</div>
+        ${automatico ? '<p style="margin-bottom:10px">Se terminó el tiempo y el examen se envió solo.</p>' : ''}
+        <h2>${titulo}</h2>
+        <p>${texto}</p>
+        <div class="acciones-ex"><button class="btn-ex" data-accion="volver-curso">Volver al curso</button></div>
+      </div>`;
+    window.scrollTo(0, 0);
+  }
+
+  // Elegir una opción del examen
+  vistaCursoEl.addEventListener('change', e => {
+    const el = e.target;
+    if (!EXAMEN || !el.matches('input[type=radio][data-preg]')) return;
+    EXAMEN.respuestas[el.dataset.preg] = el.value;
+    el.closest('fieldset').querySelectorAll('.op-ex').forEach(l => l.classList.toggle('elegida', l.contains(el)));
+    guardarRespuestas();
+    actualizarProgresoExamen();
+    if (document.querySelector('#enviar-ex .confirmar-ex')) renderEnvio(true);
+  });
+
   // Un solo manejador para todos los botones de la vista del curso
   vistaCursoEl.addEventListener('click', e => {
     // PDF abierto = contenido visto (el link se abre igual en otra pestaña)
@@ -1065,6 +1404,19 @@
     else if (el.dataset.accion === 'volver') volverACursos();
     else if (el.dataset.accion === 'anterior') seleccionarClase(claseIdx - 1, true);
     else if (el.dataset.accion === 'siguiente') seleccionarClase(claseIdx + 1, true);
+    else if (el.dataset.accion === 'rendir-examen') { pidiendoConfirmacion = true; renderTarjetaExamen(); }
+    else if (el.dataset.accion === 'cancelar-examen') { pidiendoConfirmacion = false; renderTarjetaExamen(); }
+    else if (el.dataset.accion === 'empezar-examen') empezarExamen(el);
+    else if (el.dataset.accion === 'enviar-examen') renderEnvio(true);
+    else if (el.dataset.accion === 'seguir-revisando') renderEnvio(false);
+    else if (el.dataset.accion === 'confirmar-envio') enviarExamen(false);
+    else if (el.dataset.accion === 'volver-curso') { if (cursoActual) mostrarCurso(cursoActual); }
+    else if (el.dataset.accion === 'salir-examen') {
+      const conTiempo = EXAMEN && EXAMEN.fin;
+      if (!confirm('Tu examen queda empezado y tus respuestas guardadas en este dispositivo. ' +
+        (conTiempo ? 'Ojo: el tiempo sigue corriendo. ' : '') + '¿Volver al curso?')) return;
+      if (cursoActual) mostrarCurso(cursoActual);
+    }
   });
 
   // Si ya había una sesión activa, entra directo (el servidor valida el token)
