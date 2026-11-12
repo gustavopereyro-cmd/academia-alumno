@@ -760,6 +760,60 @@
     }
   }
 
+  /* ---------- Actualización automática ----------
+     Trae de nuevo los cursos en segundo plano (sin cerrar sesión) cuando el alumno
+     vuelve a la pestaña, vuelve a "Mis cursos" o pasan unos minutos. Así ve al
+     instante un examen recién publicado, una clase nueva o un certificado. */
+  const REFRESCO_MIN_MS = 45 * 1000;        // no más de una consulta cada 45 segundos
+  const REFRESCO_PERIODICO_MS = 4 * 60 * 1000;
+  let ultimoRefresco = Date.now();
+  let refrescando = false;
+  const tocadasEnSesion = {};                 // clases que el alumno marcó en esta sesión
+
+  async function refrescarEnSilencio(forzar) {
+    if (refrescando || !sessionStorage.getItem('alumno_token')) return;
+    if (document.getElementById('app').style.display === 'none') return;
+    if (!forzar && Date.now() - ultimoRefresco < REFRESCO_MIN_MS) return;
+    if (typeof EXAMEN !== 'undefined' && EXAMEN) return;     // no tocar nada mientras rinde
+    refrescando = true;
+    ultimoRefresco = Date.now();
+    try {
+      const data = await api('getCursosAlumno', { token: sessionStorage.getItem('alumno_token') });
+      if (!data || data.error || data.sesionInvalida || !Array.isArray(data.cursos)) return;
+      if (typeof EXAMEN !== 'undefined' && EXAMEN) return;
+      // Avance: manda el servidor, salvo las clases que el alumno tocó recién en esta pestaña
+      const avance = Object.assign({}, data.avance || {});
+      Object.keys(tocadasEnSesion).forEach(id => { if (AVANCE[id]) avance[id] = AVANCE[id]; });
+      AVANCE = avance;
+      CURSOS = data.cursos;
+      renderCertificados(data.certificados || []);
+      if (cursoActual) {
+        // Dentro de un curso: no se redibuja la clase que está viendo; solo el examen
+        const nuevo = CURSOS.find(c => String(c.ID_Curso) === String(cursoActual.ID_Curso));
+        if (nuevo) {
+          cursoActual.Examen = nuevo.Examen;
+          CURSOS[CURSOS.indexOf(nuevo)] = cursoActual;
+          if (!pidiendoConfirmacion) renderTarjetaExamen();
+        }
+      } else {
+        estadoEl.style.display = 'none';
+        vacioEl.style.display = CURSOS.length ? 'none' : 'block';
+        gridEl.innerHTML = '';
+        CURSOS.forEach(c => gridEl.appendChild(crearTarjeta(c)));
+      }
+    } catch (e) {
+      /* sin conexión: se reintenta en la próxima oportunidad */
+    } finally {
+      refrescando = false;
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refrescarEnSilencio();
+  });
+  window.addEventListener('focus', () => refrescarEnSilencio());
+  setInterval(() => { if (document.visibilityState === 'visible') refrescarEnSilencio(); }, REFRESCO_PERIODICO_MS);
+
   /* ---------- Grilla de cursos ---------- */
 
   let CURSOS = [];
@@ -849,6 +903,7 @@
     vistaCursoEl.style.display = 'none';
     vistaCursosEl.style.display = 'block';
     cursoActual = null;
+    refrescarEnSilencio();
   }
 
   /* ---------- Vista del curso ---------- */
@@ -871,6 +926,7 @@
   function mostrarCurso(curso) {
     detenerExamen();
     cursoActual = curso;
+    setTimeout(() => refrescarEnSilencio(), 0);
     const clases = curso.Clases || [];
     vistaCursosEl.style.display = 'none';
     vistaCursoEl.style.display = 'block';
@@ -1028,6 +1084,7 @@
   }
 
   function guardarEstado(idClase, estado) {
+    tocadasEnSesion[String(idClase)] = true;
     AVANCE[String(idClase)] = { items: estado.items || [], completa: !!estado.completa };
   }
 
